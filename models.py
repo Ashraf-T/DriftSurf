@@ -537,15 +537,15 @@ class LogisticRegression_StableReactive(Model):
         """
 
         if self.stable:
-            self.experts['new_stable']['expert'] = LogisticRegression_expert(numpy.copy(self.init_param), self.opt, current_pointer)
-            self.experts['new_stable']['current_perf'] = None
-            self.experts['new_stable']['prev_perf'] = None
-            self.experts['new_stable']['best_observed_perf'] = None
+            expert = 'new_stable'
         else:
-            self.experts['new_reactive']['expert'] = LogisticRegression_expert(numpy.copy(self.init_param), self.opt, current_pointer)
-            self.experts['new_reactive']['current_perf'] = None
-            self.experts['new_reactive']['prev_perf'] = None
-            self.experts['new_reactive']['best_observed_perf'] = None
+            expert = 'new_reactive'
+
+        self.experts[expert]['expert'] = LogisticRegression_expert(numpy.copy(self.init_param), self.opt, current_pointer)
+        self.experts[expert]['current_perf'] = None
+        self.experts[expert]['prev_perf'] = None
+        self.experts[expert]['best_observed_perf'] = None
+
 
 
     def update_best_observed_perf(self):
@@ -653,56 +653,82 @@ class LogisticRegression_StableReactive(Model):
         self.pointer_buff = pointer_buff
 
 
-    def enter_reactive(self, current_pointer, data, predict_threshold=0.5):
+    def enter_reactive_condition1(self):
+
+        condition1 = (self.experts['main']['current_perf'] > self.experts['main']['best_observed_perf'] + self.delta)
+        if condition1:
+            logging.info('condition 1')
+
+        return condition1
+
+
+    def enter_reactive_condition2(self):
+
+        condition2 = (self.experts['new_stable']['expert']!=None and self.experts['main']['current_perf'] > self.experts['new_stable']['current_perf'] + self.delta/2)
+
+        if condition2:
+            logging.info('condition 2')
+
+        return condition2
+
+
+    def enter_reactive(self, current_pointer, data, mu):
         """
 
+        :param current_pointer:
+        :param data:
+        :param mu:
         :return:
         """
-        if self.stable and ((self.experts['main']['current_perf'] > self.experts['main']['best_observed_perf'] + self.delta) or (self.experts['new_stable']['expert']!=None and self.experts['main']['current_perf'] > self.experts['new_stable']['current_perf'] + self.delta/2)):
-            self.sample_reactive = []
+        if self.stable and ( self.enter_reactive_condition1() or self.enter_reactive_condition2()):
+
             self.stable = False
+
             self.create_new_expert(current_pointer)
-            self.update_perf('new_reactive', data, predict_threshold)
-            # print('enter reactive state')
-            if (self.experts['main']['current_perf'] > self.experts['main']['best_observed_perf'] + self.delta):
-                logging.info('condition 1')
-                # print("condition 1")
-            if (self.experts['new_stable']['expert']!=None and self.experts['main']['current_perf'] > self.experts['new_stable']['current_perf'] + self.delta/2):
-                logging.info('condition 2')
-                # print("condition 2")
+            self.update_perf('new_reactive', data, mu) # we need to know the current perf of this expert to make the greedy decision next time step
 
             self.experts['frozen']['expert'] = LogisticRegression_expert(numpy.copy(self.experts['main']['expert'].param), self.opt, current_pointer)
             # self.experts['frozen']['expert'].__dict__ = self.experts['main']['expert'].__dict__.copy()
+
             return True
+
         return False
 
-    def exit_reactive(self, current_pointer, data, mu, predict_threshold=0.5):
+
+    def switch_after_reactive(self, mu):
+
+        if self.loss_fn == 'reg':
+            perf_frozen = self.experts['frozen']['expert'].reg_loss(self.sample_reactive, mu)
+            perf_new = self.experts['new_reactive']['expert'].reg_loss(self.sample_reactive, mu)
+        else:
+            perf_frozen = self.experts['frozen']['expert'].zero_one_loss(self.sample_reactive)
+            perf_new = self.experts['new_reactive']['expert'].zero_one_loss(self.sample_reactive)
+
+        logging.info(('frozen {0}, new {1}').format(perf_frozen, perf_new))
+
+        return (perf_frozen > perf_new)
+
+
+    def exit_reactive(self, current_pointer, mu):
         """
 
         :param predict_threshold:
         :return:
         """
 
-        ret_expert = 'old'
-        # print(len(self.sample_reactive))
-        if self.loss_fn == 'reg':
-            logging.info(('frozen {0}, new {1}').format(self.experts['frozen']['expert'].reg_loss(self.sample_reactive, mu), self.experts['new_reactive']['expert'].reg_loss(self.sample_reactive, mu)))
-            # print(('frozen {0}, new {1}').format(self.experts['frozen']['expert'].reg_loss(self.sample_reactive, mu), self.experts['new_reactive']['expert'].reg_loss(self.sample_reactive, mu)))
-        else:
-            logging.info(('frozen {0}, new {1}').format(self.experts['frozen']['expert'].zero_one_loss(self.sample_reactive), self.experts['new_reactive']['expert'].zero_one_loss(self.sample_reactive)))
-            # print(('frozen {0}, new {1}').format(self.experts['frozen']['expert'].zero_one_loss(self.sample_reactive), self.experts['new_reactive']['expert'].zero_one_loss(self.sample_reactive)))
 
-        if (self.loss_fn == 'reg'and  (self.experts['frozen']['expert'].reg_loss(self.sample_reactive, mu) > self.experts['new_reactive']['expert'].reg_loss(self.sample_reactive, mu))) or (self.loss_fn == 'zero-one' and (self.experts['frozen']['expert'].zero_one_loss(self.sample_reactive) > self.experts['new_reactive']['expert'].zero_one_loss(self.sample_reactive))):
-                self.experts['main']['expert'].__dict__ = self.experts['new_reactive']['expert'].__dict__.copy()
-                # print(numpy.array_equal(self.experts['main']['expert'].param, self.experts['new_reactive']['expert'].param))
-                self.experts['main']['current_perf'] = self.experts['new_reactive']['current_perf']
-                self.experts['main']['prev_perf'] = self.experts['new_reactive']['prev_perf']
-                self.experts['main']['best_observed_perf'] = self.experts['new_reactive']['best_observed_perf']
-                ret_expert = 'new'
+        ret_expert = 'old' # default decision is to choose the old one, unless the new one performs better
+
+        if self.switch_after_reactive(mu):
+            self.experts['main']['expert'].__dict__ = self.experts['new_reactive']['expert'].__dict__.copy()
+            self.experts['main']['current_perf'] = self.experts['new_reactive']['current_perf']
+            self.experts['main']['prev_perf'] = self.experts['new_reactive']['prev_perf']
+            self.experts['main']['best_observed_perf'] = self.experts['new_reactive']['best_observed_perf']
+            ret_expert = 'new'
 
         self.stable = True
         self.create_new_expert(current_pointer)
-        self.update_perf('new_stable', data, predict_threshold)
+        # self.update_perf('new_stable', data, predict_threshold)
         self.sample_reactive = []
         logging.info('exit reactive state with {0}'.format(ret_expert))
 
@@ -714,3 +740,239 @@ class LogisticRegression_StableReactive(Model):
         :return:
         """
         self.sample_reactive.extend(data)
+
+
+
+class LogisticRegression_Ensemble(Model):
+    """
+    A class to define an ensmble of experts which is a children of Model
+    ...
+
+    Attributes
+    ----------
+
+
+
+    Methods
+    -------
+
+    """
+
+    def __init__(self, init_param, opt, current_time=0,  max_time=100, current_pointer=0, carry_over_function=False, generate_multiple_experts=False, weight_of_experts=[1], perf_of_experts=[0.5], number_of_experts=1, starting_id=1):
+        """
+
+        :param init_param:
+        :param opt:
+        :param current_time:
+        :param max_time:
+        :param current_pointer:
+        :param carry_over_function:
+        :param generate_multiple_experts:
+        :param weight_of_experts:
+        :param perf_of_experts:
+        :param number_of_experts:
+        :param starting_id:
+        """
+
+        self.opt = opt
+        self.experts = {}
+        self.timeAD = {}
+        self.weight_over_time = defaultdict(list)
+        self.perf_over_time = defaultdict(list)
+
+        self.max_time = max_time
+        self.best_id = 1
+        self.dim = len(init_param)
+
+        self.max_id = 1
+        self.pointer_buff = current_pointer
+
+        self.perf = 0.5
+        self.perf_prev = 0.5
+
+
+        self.experts[self.max_id] = LogisticRegression_expert(numpy.random.rand(self.dim), self.opt, self.pointer_buff,1, 0.5)
+        self.timeAD[self.max_id] = (current_time, self.max_time)
+        # self.weight_over_time[self.max_id] = [weight]
+        # self.perf_over_time[self.max_id] = [perf]
+        print("time : " + str(current_time) + " adding a new expert with random initialization - " + str(self.opt) + " : " + str(self.max_id))
+        self.max_id += 1
+        # self.create_new_expert(current_time)
+        # for index in range(number_of_experts):
+        # self.experts[index+starting_id] = LogisticRegression_expert(init_param, opt, current_pointer, weight_of_experts[index], perf_of_experts[index])
+        # self.timeAD[index+starting_id] = (current_time, self.max_time)
+        # self.weight_over_time[index+starting_id] = [self.experts[index+starting_id].weight]
+        # self.perf_over_time[index+starting_id] = [self.experts[index+starting_id].perf]
+        # self.max_id += 1
+
+    def create_new_expert(self, current_time, current_pointer):
+        """
+
+        :param current_time:
+        :return:
+        """
+
+        if len(self.experts.keys()) > 0:
+
+            weight = self.experts[self.best_id].weight
+            perf = self.experts[self.best_id].perf
+
+            self.experts[self.max_id] = LogisticRegression_expert(numpy.copy(self.experts[self.best_id].param), self.opt, current_pointer, weight, perf)
+            self.timeAD[self.max_id] = (current_time, self.max_time)
+            self.weight_over_time[self.max_id] = [weight]
+            self.perf_over_time[self.max_id] = [perf]
+            print("time : " + str(current_time) + " adding a new expert carrying over the previously best function - " + str(self.opt) + " : " + str(self.max_id))
+            self.max_id += 1
+        else:
+            weight, perf = 1, 0.5
+
+        self.experts[self.max_id] = LogisticRegression_expert(numpy.random.rand(self.dim), self.opt, current_pointer,weight, perf)
+        self.timeAD[self.max_id] = (current_time, self.max_time)
+        self.weight_over_time[self.max_id] = [weight]
+        self.perf_over_time[self.max_id] = [perf]
+        print("time : " + str(current_time) + " adding a new expert with random initialization - " + str(self.opt) + " : " + str(self.max_id))
+        self.max_id += 1
+
+        self.normalize_weight()
+
+
+    def normalize_weight(self):
+        """
+
+        :param norm:
+        :return:
+        """
+        # if norm == 'sum':
+        value = self.sum_of_weights()
+        if value != 0:
+            for key in self.experts.keys():
+                self.experts[key].weight /= value
+
+    def sum_of_weights(self):
+        value = 0.0
+        for key in self.experts.keys():
+            value += self.experts[key].weight
+        return value
+
+
+    def update_perf(self, data, predict_threshold=0.5):
+        for key in self.experts.keys():
+            self.experts[key].perf_prev = self.experts[key].perf
+            self.experts[key].perf = 1 - self.experts[key].zero_one_loss(data, predict_threshold)
+            self.experts[key].weight = self.experts[key].perf
+
+        # normalize weights
+        self.normalize_weight()
+        for key in self.experts.keys():
+            self.weight_over_time[key].append(self.experts[key].weight)
+            self.perf_over_time[key].append(self.experts[key].perf)
+            # print key, self.experts[key].perf
+
+
+    def find_best_expert(self):
+        self.perf_prev = self.experts[self.best_id].perf_prev
+        max_perf = 0
+        index = 1
+        for key in self.experts.keys():
+            if max_perf < self.experts[key].perf:
+                max_perf = self.experts[key].perf
+                index = key
+
+        self.best_id = index
+        self.perf = self.experts[index].perf
+        return index
+
+    def add_expert(self, current_time, eta=0.1, current_pointer = 0):
+
+        # if len(self.experts.keys()) == 0:
+        #     print 'length zero -> add new expert'
+        #     self.create_new_expert(current_time)
+
+        if self.perf < self.perf_prev - eta:
+            self.create_new_expert(current_time, current_pointer)
+
+        # self.normalize_weight()
+
+
+    def zero_one_loss(self, data, threshold=0.5):
+        if len(data) == 0:
+            return 0
+        return sum(self.predict(x, threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+
+    def predict(self, x, threshold=0.5):
+        return self.experts[self.best_id].predict(x, threshold)
+
+    # def update_weights(self):
+    #     """
+    #
+    #     :param data:
+    #     :param current_time:
+    #     :param predict_threshold:
+    #     :param weight_update_strategy:
+    #     :param drop_threshold:
+    #     :param warmup_period:
+    #     :param drop:
+    #     :param drop_method:
+    #     :param add_method:
+    #     :param eta:
+    #     :param norm:
+    #     :return:
+    #     """
+    #
+    #     for key in self.experts.keys():
+    #         self.experts[key].weight = self.experts[key].perf
+    #
+    #     # normalize weights
+    #     self.normalize_weight()
+    #     for key in self.experts.keys():
+    #         self.weight_over_time[key].append(self.experts[key].weight)
+    #         self.perf_over_time[key].append(self.experts[key].perf)
+    #         # print key, self.experts[key].perf
+
+    def update_buffer_pointer(self, pointer_buff):
+        """
+
+        :param pointer_buff:
+        :return:
+        """
+        self.pointer_buff = pointer_buff
+
+    def remove_expert(self, current_time, drop_threshold=0.5, warmup_period=5): #threshold is about miss classification rate
+        """
+
+        :param current_time:
+        :param drop_threshold:
+        :param warmup_period:
+        :param drop:
+        :param drop_method:
+        :return:
+        """
+        for key in self.experts.keys():
+            start_time, end_time = self.timeAD[key]
+            if self.experts[key].weight < drop_threshold and current_time - start_time > warmup_period and key != self.best_id:
+                print("time : " + str(current_time) + " removing an expert - " + str(self.opt) + " : " + str(key))
+
+                del self.experts[key]
+                lst = list(self.timeAD[key])
+                lst[1] = current_time
+                self.timeAD[key] = (lst[0], lst[1])
+                # del self.weight_over_time[key][len(self.weight_over_time[key])-1]
+                # del self.perf_over_time[key][len(self.perf_over_time[key])-1]
+
+        # elif drop_method != 'noDrop':
+        #     print "undefined drop method"
+
+        self.normalize_weight()
+
+
+
+
+
+
+
+
+
+
+
+
+
