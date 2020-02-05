@@ -23,8 +23,10 @@ class MDDM_E(SuperDetector):
 
     def __init__(self, n=100, lambda_=0.01, delta=0.000001):
 
-        super().__init__()
-
+        #super().__init__()
+        self.RUNTIME = 0
+        self.TOTAL_RUNTIME = 0
+        
         self.win = []
         self.n = n
         self.lambda_ = lambda_

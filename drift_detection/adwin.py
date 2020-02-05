@@ -12,7 +12,7 @@ URL: http://www.cs.upc.edu/~GAVALDA/papers/adwin06.pdf
 
 import math
 
-from dictionary.tornado_dictionary import TornadoDic
+#from dictionary.tornado_dictionary import TornadoDic
 from drift_detection.detector import SuperDetector
 
 
@@ -133,11 +133,13 @@ class List:
 class ADWINChangeDetector(SuperDetector):
     """The ADaptive WINdowing (ADWIN) drift detection method class."""
 
-    DETECTOR_NAME = TornadoDic.ADWIN
+    #DETECTOR_NAME = TornadoDic.ADWIN
 
     def __init__(self, delta=0.002):
 
-        super().__init__()
+        #super().__init__()
+        self.RUNTIME = 0
+        self.TOTAL_RUNTIME = 0
 
         self.DELTA = delta
         self.adwin = ADWIN(self.DELTA)

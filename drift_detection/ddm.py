@@ -13,18 +13,20 @@ URL: https://link.springer.com/chapter/10.1007/978-3-540-28645-5_29
 import math
 import sys
 
-from dictionary.tornado_dictionary import TornadoDic
+#from dictionary.tornado_dictionary import TornadoDic
 from drift_detection.detector import SuperDetector
 
 
 class DDM(SuperDetector):
     """The traditional Drift Detection Method (DDM) class."""
 
-    DETECTOR_NAME = TornadoDic.DDM
+    #DETECTOR_NAME = TornadoDic.DDM
 
     def __init__(self, min_instance=30):
 
-        super().__init__()
+        #super().__init__()
+        self.RUNTIME = 0
+        self.TOTAL_RUNTIME = 0
 
         self.MINIMUM_NUM_INSTANCES = min_instance
         self.NUM_INSTANCES_SEEN = 1

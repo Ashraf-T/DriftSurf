@@ -23,7 +23,9 @@ class MDDM_G(SuperDetector):
 
     def __init__(self, n=100, ratio=1.01, delta=0.000001):
 
-        super().__init__()
+        #super().__init__()
+        self.RUNTIME = 0
+        self.TOTAL_RUNTIME = 0
 
         self.win = []
         self.n = n

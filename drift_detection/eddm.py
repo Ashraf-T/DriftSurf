@@ -11,18 +11,20 @@ URL: http://www.cs.upc.edu/~abifet/EDDM.pdf
 
 import math
 
-from dictionary.tornado_dictionary import TornadoDic
+#from dictionary.tornado_dictionary import TornadoDic
 from drift_detection.detector import SuperDetector
 
 
 class EDDM(SuperDetector):
     """The Early Drift Detection Method (EDDM) class."""
 
-    DETECTOR_NAME = TornadoDic.EDDM
+    #DETECTOR_NAME = TornadoDic.EDDM
 
     def __init__(self):
 
-        super().__init__()
+        #super().__init__()
+        self.RUNTIME = 0
+        self.TOTAL_RUNTIME = 0
 
         self.WARNING_LEVEL = 0.95
         self.OUT_CONTROL_LEVEL = 0.9

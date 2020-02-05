@@ -4,30 +4,30 @@ import csv
 # SEA, 1 abrupt drift at 50k; 10% noise added
 # WriteStreamToARFFFile -s (ConceptDriftStream -s (generators.SEAGenerator -f 3 -n 10 -b) -d (generators.SEAGenerator -f 2 -n 10 -b) -p 50000 -w 1) -f sea_abrupt.arff -m 100000 -h
 # """
-# def sea_abrupt():
-    # n = 100000
-    # d = 3+1
-    # X = []
-    # Y = []
+def sea_abrupt():
+    n = 100000
+    d = 3+1
+    X = []
+    Y = []
     
-    # with open('data/moa/sea_abrupt.arff') as file:
-        # reader = csv.reader(file, delimiter=',')
-        # i = 0
-        # for line in reader:
-            # features = {}
-            # for j in xrange(d-1):
-                # features[j] = float(line[j])
-            # features[d-1] = 1
-            # if line[d-1] == 'groupA':
-                # label = 1
-            # else:
-                # label = -1
-            # X.append(features)
-            # Y.append(label)
-            # i += 1
-    # assert len(X) == 100000
+    with open('data/moa/sea_abrupt.arff') as file:
+        reader = csv.reader(file, delimiter=',')
+        i = 0
+        for line in reader:
+            features = {}
+            for j in range(d-1):
+                features[j] = float(line[j])
+            features[d-1] = 1
+            if line[d-1] == 'groupA':
+                label = 1
+            else:
+                label = -1
+            X.append(features)
+            Y.append(label)
+            i += 1
+    assert len(X) == 100000
             
-    # return X, Y, n, d
+    return X, Y, n, d
 
 """
 SEA, 3 abrupt drifts at 25k, 50k, 75k; 10% noise added
@@ -50,7 +50,7 @@ def sea4():
         i = 0
         for line in reader:
             features = {}
-            for j in xrange(d-1):
+            for j in range(d-1):
                 features[j] = float(line[j])
             features[d-1] = 1
             if line[d-1] == 'groupA':
@@ -133,7 +133,7 @@ def hyperplane_slow():
         i = 0
         for line in reader:
             features = {}
-            for j in xrange(d-1):
+            for j in range(d-1):
                 features[j] = float(line[j])
             features[d-1] = 1
             if line[d-1] == 'class1':
@@ -162,7 +162,7 @@ def hyperplane_fast():
         i = 0
         for line in reader:
             features = {}
-            for j in xrange(d-1):
+            for j in range(d-1):
                 features[j] = float(line[j])
             features[d-1] = 1
             if line[d-1] == 'class1':
