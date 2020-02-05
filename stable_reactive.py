@@ -9,6 +9,7 @@ import models as models
 import math
 from matplotlib.patches import Polygon
 import read_data as data
+import syn_data as syn_data
 import logging
 
 OPT = models.Opt.SAGA
@@ -18,15 +19,15 @@ T_reactive = 4
 Delta = 0.1
 
 factor = 1
-NUMBER_OF_BATCHES = 300 # air: 10000, elec:50
+NUMBER_OF_BATCHES = 300 # air: 10000, elec:50, moa:100
 
-STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1}
-MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5}
+STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-2, 'hyperplane_fast': 5e-1}
+MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3}
 THRESHOLD = {'default': 0.5}
 
 # Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [32, 64, 100, 165, 462, 562, 687, 1010, 1042, 1100, 1385, 1582, 1682, 1720,1847], 'elec': [] }
 # Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [1682, 1720,1847], 'elec': [21, 33, 47, 57, 71, 80] }
-Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [], 'elec': [21, 33, 47, 57, 71, 80] }
+Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [], 'elec': [21, 33, 47, 57, 71, 80], 'sea': [25, 50, 75], 'stagger': [50], 'hyperplane_slow': [], 'hyperplane_fast': [] }
 # elec: motnt = [ 8, 15, 20], week = [21, 33, 47, 57, 71, 80]
 def fresh_model(d, opt= OPT):
     return models.LogisticRegression_expert(numpy.random.rand(d), opt)
