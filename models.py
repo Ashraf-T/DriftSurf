@@ -766,7 +766,42 @@ class LogisticRegression_AUE:
                 wn += weight
 
         return 1 if wp > wn else -1
-        
+
+    # def pr(self, x, predict_threshold=0.5):
+    #     wp = 0
+    #     wn = 0
+    #
+    #     for index in self.experts.keys():
+    #         expert, weight = self.experts[index], self.weights[index]
+    #
+    #         if (expert.predict(x, predict_threshold) == 1):
+    #             wp += weight
+    #         else:
+    #             wn += weight
+    #
+    #     return wp/(wp+wn)
+    #
+    #
+    #
+    # def reg_loss(self, data, mu):
+    #
+    #     if len(data) == 0:
+    #         return 0
+    #     else:
+    #         loss = sum(numpy.log(1 + numpy.exp(-1 * y * self.pr(x))) for (i, x, y) in data) / len(data)
+            # or it should be
+            # loss = 0
+            # for (i, x, y) in data:
+            #     loss_d = 0
+            #     for k in self.experts.keys():
+            #         loss_d += self.weights[k] * numpy.log(1 + numpy.exp(-1 * y * self.experts[k].dot_product(x)))
+            #     loss += loss_d
+            # loss /= len(data)
+    #         reg = 0
+    #         for k in self.weights.keys():
+    #             reg += self.weights[k] * 0.5 * mu * numpy.dot(self.experts[k].param, self.experts[k].param)
+    #         return loss + reg
+
     def zero_one_loss(self, data, predict_threshold=0.5):
         if len(data) == 0:
             return 0
@@ -796,4 +831,9 @@ class LogisticRegression_AUE:
         self.experts[T] = LogisticRegression_expert(self.init_w, self.opt)
         self.weights[T] = 1./(mser + LogisticRegression_AUE.EPS)
         self.T1[T] = T
-        
+        self.normalize_weights()
+
+    def normalize_weights(self):
+        s = sum(w for w in self.weights.values())
+        for k in self.weights.keys():
+            self.weights[k] /= s

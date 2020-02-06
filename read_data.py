@@ -120,6 +120,37 @@ def sea():
 
     return X, Y, n, d
 
+def circles_new():
+    # n = 10000
+    n = 20000
+    d = 3
+
+    X = []
+    Y = []
+
+    # with open('data/Circles.arff') as file:
+    with open('data/Circles_20000.arff') as file:
+        i = 0
+
+        for line in file:
+            if i > 5:
+                fields = line.strip().split(',')
+                label = 1 if (fields[len(fields) - 1]) == 'p' else -1
+                features = {0: 1}
+                for j in range(len(fields) - 1):
+                    features[j + 1] = float(fields[j])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+    # n_train = int(0.9 * n)
+    # train_data = data[:n_train]
+    # test_data = data[n_train:]
+
+    return X, Y, n, d
+
 def circles():
     n = 100000
     d = 3
@@ -168,6 +199,36 @@ def mixed():
                 features[1] = 1 if (fields[0] == 'True') else 0
                 features[2] = 1 if (fields[1] == 'True') else 0
                 for j in range(2,len(fields) - 1):
+                    features[j + 1] = float(fields[j])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+        # n_train = int(0.9 * n)
+        # train_data = data[:n_train]
+        # test_data = data[n_train:]
+
+    return X, Y, n, d
+
+def sine1_new():
+
+    n = 10000
+    d = 3
+
+    X = []
+    Y = []
+
+    with open('data/sine1.arff') as file:
+        i = 0
+
+        for line in file:
+            if i > 5:
+                fields = line.strip().split(',')
+                label = 1 if (fields[len(fields) - 1]) == 'p' else -1
+                features = {0: 1}
+                for j in range(len(fields) - 1):
                     features[j + 1] = float(fields[j])
 
                 X.append(features)
@@ -486,4 +547,5 @@ if __name__ == "__main__":
     # elec()
     # sine1()
     # mixed()
-    airline_moa()
+    # airline_moa()
+    sine1_new()

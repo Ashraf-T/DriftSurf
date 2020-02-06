@@ -21,20 +21,23 @@ T_reactive = 4
 Delta = 0.1
 
 factor = 1
-NUMBER_OF_BATCHES = 200 #300 # air: 10000, elec:50, moa:100
+NUMBER_OF_BATCHES = 34 #300 # air: 10000, elec:50, moa:100
 
-<<<<<<< Updated upstream:stable_reactive.py
-STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2}
-MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3}
-=======
-STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-2, 'hyperplane_fast': 5e-1, 'sine1' : 1e-1, 'mixed': 0.2, 'circles': 1e-1, 'sea_T': 2e-1, 'air_moa': 1e-1}
-MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3, 'sine1': 1e-5, 'mixed': 1e-5, 'circles': 1e-3, 'sea_T': 1e-3, 'air_moa': 1e-2}
->>>>>>> Stashed changes:stable_reactive-old.py
+# STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2}
+# MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3}
+
+
+# STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2, 'sine1' : 1e-1, 'mixed': 0.2, 'circles': 1e-1, 'sea_T': 2e-1, 'air_moa': 1e-1}
+# MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3, 'sine1': 1e-5, 'mixed': 1e-5, 'circles': 1e-3, 'sea_T': 1e-3, 'air_moa': 1e-2}
+#New
+STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 1e-1, 'air': 2e-2, 'elec': 1e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2, 'sine1' : 1e-1, 'sine1_new' : 2e-1, 'mixed': 0.2, 'circles': 1e-1, 'circles_new': 2e-1, 'sea_T': 2e-1, 'air_moa': 1e-1}
+MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-4, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3, 'sine1': 1e-5, 'sine1_new' : 1e-3, 'mixed': 1e-5, 'circles': 1e-3, 'circles_new': 1e-2, 'sea_T': 1e-3, 'air_moa': 1e-2}
+
 THRESHOLD = {'default': 0.5}
 
 # Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [32, 64, 100, 165, 462, 562, 687, 1010, 1042, 1100, 1385, 1582, 1682, 1720,1847], 'elec': [] }
 # Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [1682, 1720,1847], 'elec': [21, 33, 47, 57, 71, 80] }
-Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [31,67], 'elec': [20], 'sea': [25, 50, 75], 'stagger': [50], 'hyperplane_slow': [], 'hyperplane_fast': [], 'sine1' : [20, 40, 60, 80], 'mixed': [20, 40, 60, 80], 'circles': [], 'sea_T': [], 'air_moa': [] }
+Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [31,67], 'elec': [20], 'sea': [25, 50, 75], 'stagger': [50], 'hyperplane_slow': [], 'hyperplane_fast': [], 'sine1' : [20, 40, 60, 80], 'sine1_new' : [20, 40, 60, 80], 'mixed': [20, 40, 60, 80], 'circles': [], 'circles_new': [], 'sea_T': [], 'air_moa': [] }
 # elec: motnt = [ 8, 15, 20], week = [21, 33, 47, 57, 71, 80]
 def fresh_model(d, opt= OPT):
     return models.LogisticRegression_expert(numpy.random.rand(d), opt)
@@ -126,7 +129,7 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
         # loss['STR']['reg'][time] = STR.reg_loss(test_set, mu)
         loss['OB']['reg'][time] = OB.reg_loss(test_set, mu)
         loss['DD']['reg'][time] = DD.reg_loss(test_set, mu)
-        
+
         AUE.update_weights(test_set)
         logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k/lam) for k in AUE.weights.keys()]))
 
@@ -246,6 +249,7 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
         # AUE ensemble method
         for T0, expert in AUE.experts.items():
             for s in range(rho):
+            # for s in range(int(2*rho*AUE.weights[T0])):
                 if s % 2 == 0 and AUE.T1[T0] < S:
                     j = AUE.T1[T0]
                     AUE.T1[T0] += 1
@@ -283,24 +287,24 @@ def plot(output, rate, b_in, dataset_name):
         first = i*b
         last = min(b * (i+1), b_in)
 
-        xx = range(first, last)
+        xx = range(first, last, t)
 
         if i == 0:
-            xx = range(1,b)
+            xx = range(1,b, t)
             first = 1
 
 
         # ------------ accuracy  --------------
         plt.figure(1)
         plt.clf()
-        plt.plot(xx, output['Aware']['zero-one'][first:last], 'g-', label='Aware')
-        plt.plot(xx, output['AwareCarry']['zero-one'][first:last], 'y-', label='AwareCarry')
+        plt.plot(xx, output['Aware']['zero-one'][first:last], 'black', label='Aware')
+        # plt.plot(xx, output['AwareCarry']['zero-one'][first:last], 'y-', label='AwareCarry')
         # plt.plot(xx, output['STR']['zero-one'][first:last], 'lime', label='STR')
-        plt.plot(xx, output['sgdOnline']['zero-one'][first:last], 'peru', label='sgdOnline')
-        plt.plot(xx, output['SR']['zero-one'][first:last], 'blue', label='SR')
-        plt.plot(xx, output['OB']['zero-one'][first:last], 'red', label='OB')
-        plt.plot(xx, output['DD']['zero-one'][first:last], 'magenta', label='MDDM')
-        plt.plot(xx, output['AUE']['zero-one'][first:last], 'cyan', label='AUE')
+        # plt.plot(xx, output['sgdOnline']['zero-one'][first:last], 'peru', label='sgdOnline')
+        plt.plot(xx, output['SR']['zero-one'][first:last:t], 'blue', label='SR', marker='o', linestyle='dashed',markevery=10)
+        # plt.plot(xx, output['OB']['zero-one'][first:last], 'red', label='OB')
+        plt.plot(xx, output['DD']['zero-one'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed', markevery=10)
+        plt.plot(xx, output['AUE']['zero-one'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
         # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
         # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
         plt.xlabel('Time')
@@ -308,20 +312,21 @@ def plot(output, rate, b_in, dataset_name):
         plt.legend()
         plt.xlim(first, last)
         # plt.ylim(0.1, 0.4)
-        # plt.savefig(os.path.join(path_eps, '{0}r{1}-acc{2}.eps'.format(dataset_name, rate, i)), format='eps')
-        plt.savefig(os.path.join(path_png, '{0}r{1}-acc{2}.png'.format(dataset_name, rate, i)), format='png', dpi=200)
+        plt.savefig(os.path.join(path_eps, '{0}r{1}-acc{2}1.eps'.format(dataset_name, rate, i)), format='eps')
+        plt.savefig(os.path.join(path_png, '{0}r{1}-acc{2}1.png'.format(dataset_name, rate, i)), format='png', dpi=200)
 
 
         # ------------ reg-loss  --------------
         plt.figure(2)
         plt.clf()
-        plt.plot(xx, output['Aware']['reg'][first:last], 'g-', label='Aware')
-        plt.plot(xx, output['AwareCarry']['reg'][first:last], 'y-', label='AwareCarry')
+        plt.plot(xx, output['Aware']['reg'][first:last], 'black', label='Aware')
+        # plt.plot(xx, output['AwareCarry']['reg'][first:last], 'y-', label='AwareCarry')
         # plt.plot(xx, output['STR']['reg'][first:last], 'lime', label='STR')
-        plt.plot(xx, output['sgdOnline']['reg'][first:last], 'peru', label='sgdOnline')
-        plt.plot(xx, output['SR']['reg'][first:last], 'blue', label='SR')
-        plt.plot(xx, output['OB']['reg'][first:last], 'red', label='OB')
-        plt.plot(xx, output['DD']['reg'][first:last], 'magenta', label='MDDM')
+        # plt.plot(xx, output['sgdOnline']['reg'][first:last], 'peru', label='sgdOnline')
+        plt.plot(xx, output['SR']['reg'][first:last:t], 'blue', label='SR',  marker='o', linestyle='dashed',markevery=10)
+        # plt.plot(xx, output['OB']['reg'][first:last], 'red', label='OB')
+        plt.plot(xx, output['DD']['reg'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed',markevery=10)
+        # plt.plot(xx, output['AUE']['reg'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
         # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
         # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
         plt.xlabel('Time')
@@ -329,8 +334,51 @@ def plot(output, rate, b_in, dataset_name):
         plt.legend()
         plt.xlim(first, last)
         # plt.ylim(0, 0.9)
-        # plt.savefig(os.path.join(path_eps, '{0}r{1}-reg{2}.eps'.format(dataset_name, rate, i)), format='eps')
-        plt.savefig(os.path.join(path_png, '{0}r{1}-reg{2}.png'.format(dataset_name, rate, i)), format='png', dpi=200)
+        plt.savefig(os.path.join(path_eps, '{0}r{1}-reg{2}1.eps'.format(dataset_name, rate, i)), format='eps')
+        plt.savefig(os.path.join(path_png, '{0}r{1}-reg{2}1.png'.format(dataset_name, rate, i)), format='png', dpi=200)
+
+        # ------------ accuracy w/carry --------------
+        plt.figure(3)
+        plt.clf()
+        # plt.plot(xx, output['Aware']['zero-one'][first:last], 'g-', label='Aware')
+        plt.plot(xx, output['AwareCarry']['zero-one'][first:last], 'black', label='AwareCarry')
+        # plt.plot(xx, output['STR']['zero-one'][first:last], 'lime', label='STR')
+        # plt.plot(xx, output['sgdOnline']['zero-one'][first:last], 'peru', label='sgdOnline')
+        plt.plot(xx, output['SR']['zero-one'][first:last:t], 'blue', label='SR', marker='o', linestyle='dashed',markevery=10)
+        # plt.plot(xx, output['OB']['zero-one'][first:last], 'red', label='OB')
+        plt.plot(xx, output['DD']['zero-one'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed', markevery=10)
+        plt.plot(xx, output['AUE']['zero-one'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
+        # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
+        # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
+        plt.xlabel('Time')
+        plt.ylabel('Misclassification rate')
+        plt.legend()
+        plt.xlim(first, last)
+        # plt.ylim(0.1, 0.4)
+        plt.savefig(os.path.join(path_eps, '{0}r{1}-acc{2}2.eps'.format(dataset_name, rate, i)), format='eps')
+        plt.savefig(os.path.join(path_png, '{0}r{1}-acc{2}2.png'.format(dataset_name, rate, i)), format='png', dpi=200)
+
+
+        # ------------ reg-loss w/carry --------------
+        plt.figure(4)
+        plt.clf()
+        # plt.plot(xx, output['Aware']['reg'][first:last], 'g-', label='Aware')
+        plt.plot(xx, output['AwareCarry']['reg'][first:last], 'black', label='AwareCarry')
+        # plt.plot(xx, output['STR']['reg'][first:last], 'lime', label='STR')
+        # plt.plot(xx, output['sgdOnline']['reg'][first:last], 'peru', label='sgdOnline')
+        plt.plot(xx, output['SR']['reg'][first:last:t], 'blue', label='SR',  marker='o', linestyle='dashed',markevery=10)
+        # plt.plot(xx, output['OB']['reg'][first:last], 'red', label='OB')
+        plt.plot(xx, output['DD']['reg'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed',markevery=10)
+        # plt.plot(xx, output['AUE']['reg'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
+        # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
+        # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
+        plt.xlabel('Time')
+        plt.ylabel('regression loss')
+        plt.legend()
+        plt.xlim(first, last)
+        # plt.ylim(0, 0.9)
+        plt.savefig(os.path.join(path_eps, '{0}r{1}-reg{2}2.eps'.format(dataset_name, rate, i)), format='eps')
+        plt.savefig(os.path.join(path_png, '{0}r{1}-reg{2}2.png'.format(dataset_name, rate, i)), format='png', dpi=200)
 
 
 
@@ -364,17 +412,13 @@ def median_outputs(output_list, b):
         output['OB']['reg'][t] = numpy.median([o['OB']['reg'][t] for o in output_list])
         output['DD']['reg'][t] = numpy.median([o['DD']['reg'][t] for o in output_list])
         output['AUE']['reg'][t] = numpy.median([o['AUE']['reg'][t] for o in output_list])
-
-
+ # "output_list
     return output
 
 if __name__ == "__main__":
 
-<<<<<<< Updated upstream:stable_reactive.py
-    dataset_name = 'hyperplane_fast'
-=======
-    dataset_name = 'air_moa'
->>>>>>> Stashed changes:stable_reactive-old.py
+
+    dataset_name = 'elec'
     prediction_threshold = THRESHOLD['default']
     b = NUMBER_OF_BATCHES
 
@@ -392,21 +436,19 @@ if __name__ == "__main__":
     # X, Y, n, d = data.airline()
     # X, Y, n, d = data.airline_trim(1900*581, 1600*581)
     # X, Y, n, d = data.airline_trim(100*581)
-    # X, Y, n, d = data.elec()
-<<<<<<< Updated upstream:stable_reactive.py
-=======
+    X, Y, n, d = data.elec()
     # X, Y, n, d = data.sine1()
     # X, Y, n, d = data.mixed()
     # X, Y, n, d = data.circles()
     # X, Y, n, d = data.sea()
-    X, Y, n, d = data.airline_moa()
+    # X, Y, n, d = data.airline_moa()
+    # X, Y, n, d = data.sine1_new()
+    # X, Y, n, d = data.circles_new()
 
-
->>>>>>> Stashed changes:stable_reactive-old.py
     # X, Y, n, d = syn_data.sea4()
     # X, Y, n, d = syn_data.stagger_abrupt()
     #X, Y, n, d = syn_data.hyperplane_slow()
-    X, Y, n, d = syn_data.hyperplane_fast()
+    # X, Y, n, d = syn_data.hyperplane_fast()
 
 
 
@@ -417,7 +459,7 @@ if __name__ == "__main__":
     # print(n, d, b, lam, X[0], Y[0])
     # print(lam)
     rho = int(lam * rate)
-    N = 3
+    N = 5
     outputs = []
     for i in range(N):
         print ({'Trial {0}'.format(i)})
