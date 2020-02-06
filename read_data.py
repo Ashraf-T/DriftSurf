@@ -9,6 +9,208 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 
+
+def airline_moa():
+    n = 539383
+    d = 6
+
+    X = []
+    Y = []
+
+    j = 3
+    feature_names = {}
+    with open('data/airline/airlines.arff') as file:
+        i = 1
+
+        for line in file:
+            # airline names :
+            if i == 3:
+                fields = line.strip().split(' ')
+                Airline = fields[2][1:-1].split(',')
+                for k in Airline:
+                    if k+'_air' not in feature_names.keys():
+                        feature_names[k+'_air'] = j
+                        j += 1
+            if i == 5:
+                fields = line.strip().split(' ')
+                AirportFrom = fields[2][1:-1].split(',')
+                for k in AirportFrom:
+                    if k+'_from' not in feature_names.keys():
+                        feature_names[k[1:-1]+'_from'] = j
+                        j += 1
+            if i == 6:
+                fields = line.strip().split(' ')
+                AirportTo = fields[2][1:-1].split(',')
+                for k in AirportTo:
+                    if k+'_to' not in feature_names.keys():
+                        feature_names[k[1:-1]+'_to'] = j
+                        j += 1
+            if i == 7:
+                fields = line.strip().split(' ')
+                DayOfWeek = fields[2][1:-1].split(',')
+                for k in DayOfWeek:
+                    if k+'_day' not in feature_names.keys():
+                        feature_names[k+'_day'] = j
+                        j += 1
+                # print(feature_names)
+            if i > 12:
+                fields = line.strip().replace(" ",'').split(',')
+                label = 1 if int(fields[len(fields) - 1]) ==  1 else -1
+
+                features = {0: 1}
+                features[feature_names[fields[0]+'_air']] = 1
+                features[feature_names[fields[2]+'_from']] = 1
+                features[feature_names[fields[3]+'_to']] = 1
+                features[feature_names[fields[4]+'_day']] = 1
+                features[1] = float(fields[5])
+                features[2] = float(fields[6])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+    d = j
+    max_1 = max(X[i][1] for i in range(len(X)))
+    max_2 = max(X[i][2] for i in range(len(X)))
+    for i in range(len(X)):
+        X[i][1] = X[i][1]/max_1
+        X[i][2] = X[i][2]/max_2
+
+    # n_train = int(0.9 * n)
+    # train_data = data[:n_train]
+    # test_data = data[n_train:]
+
+    return X, Y, n, d
+
+def sea():
+    n = 100000
+    d = 4
+
+    X = []
+    Y = []
+
+    with open('data/Tornado/SEA.arff') as file:
+        i = 0
+
+        for line in file:
+            if i > 6:
+                fields = line.strip().split(',')
+                label = 1 if (fields[len(fields) - 1]) == 'p' else -1
+                features = {0: 1}
+                for j in range(len(fields) - 1):
+                    features[j + 1] = float(fields[j])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+    max_0 = max(X[i][1] for i in range(len(X)))
+    max_1 = max(X[i][2] for i in range(len(X)))
+    max_2 = max(X[i][3] for i in range(len(X)))
+    for i in range(len(X)):
+        X[i][1] = X[i][1]/max_0
+        X[i][2] = X[i][2]/max_1
+        X[i][3] = X[i][3]/max_2
+
+    # n_train = int(0.9 * n)
+    # train_data = data[:n_train]
+    # test_data = data[n_train:]
+
+    return X, Y, n, d
+
+def circles():
+    n = 100000
+    d = 3
+
+    X = []
+    Y = []
+
+    with open('data/Tornado/circles_w_500_n_0.1/circles_w_500_n_0.1_101.arff') as file:
+        i = 0
+
+        for line in file:
+            if i > 5:
+                fields = line.strip().split(',')
+                label = 1 if (fields[len(fields) - 1]) == 'p' else -1
+                features = {0: 1}
+                for j in range(len(fields) - 1):
+                    features[j + 1] = float(fields[j])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+    # n_train = int(0.9 * n)
+    # train_data = data[:n_train]
+    # test_data = data[n_train:]
+
+    return X, Y, n, d
+
+def mixed():
+
+    n = 100000
+    d = 5
+
+    X = []
+    Y = []
+
+    with open('data/Tornado/mixed_w_50_n_0.1/mixed_w_50_n_0.1_101.arff') as file:
+        i = 0
+
+        for line in file:
+            if i > 7:
+                fields = line.strip().split(',')
+                label = 1 if (fields[len(fields) - 1]) == 'p' else -1
+                features = {0: 1}
+                features[1] = 1 if (fields[0] == 'True') else 0
+                features[2] = 1 if (fields[1] == 'True') else 0
+                for j in range(2,len(fields) - 1):
+                    features[j + 1] = float(fields[j])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+        # n_train = int(0.9 * n)
+        # train_data = data[:n_train]
+        # test_data = data[n_train:]
+
+    return X, Y, n, d
+
+def sine1():
+
+    n = 100000
+    d = 3
+
+    X = []
+    Y = []
+
+    with open('data/Tornado/sine1_w_50_n_0.1/sine1_w_50_n_0.1_101.arff') as file:
+        i = 0
+
+        for line in file:
+            if i > 5:
+                fields = line.strip().split(',')
+                label = 1 if (fields[len(fields) - 1]) == 'p' else -1
+                features = {0: 1}
+                for j in range(len(fields) - 1):
+                    features[j + 1] = float(fields[j])
+
+                X.append(features)
+                Y.append(label)
+            i += 1
+    assert len(X) == n
+
+        # n_train = int(0.9 * n)
+        # train_data = data[:n_train]
+        # test_data = data[n_train:]
+
+    return X, Y, n, d
+
 def Luxembourgcal():
     n = 1901
     d = 32
@@ -280,5 +482,8 @@ if __name__ == "__main__":
     # Luxembourgcal()
     # powerSupply()
     # airline()
-    airline_trim(1700*581, 1900*581)
+    # airline_trim(1700*581, 1900*581)
     # elec()
+    # sine1()
+    # mixed()
+    airline_moa()
