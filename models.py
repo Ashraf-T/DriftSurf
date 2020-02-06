@@ -741,3 +741,59 @@ class LogisticRegression_StableReactive(Model):
         """
         self.sample_reactive.extend(data)
 
+
+class LogisticRegression_AUE:
+    K = 10
+    EPS = 1e-20
+    
+    def __init__(self, d, opt):
+        self.init_w = numpy.random.rand(d)
+        self.opt = opt
+        self.experts = {}
+        self.weights = {}
+        self.T1 = {}
+    
+    def predict(self, x, predict_threshold=0.5):
+        wp = 0
+        wn = 0
+
+        for index in self.experts.keys():
+            expert, weight = self.experts[index], self.weights[index]
+
+            if (expert.predict(x, predict_threshold) == 1):
+                wp += weight
+            else:
+                wn += weight
+
+        return 1 if wp > wn else -1
+        
+    def zero_one_loss(self, data, predict_threshold=0.5):
+        if len(data) == 0:
+            return 0
+        return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+        
+    def update_weights(self, test_set):
+        p = ( sum(y for (i, x, y) in test_set) + len(test_set) )/( 2*len(test_set) )
+        mser = p*(1-p)
+        
+        for index, expert in self.experts.items():
+            mse = 0
+            for (i, x, y) in test_set:
+                pr = expit(expert.dot_product(x))
+                if y == 1:
+                    mse += (1-pr)**2
+                else:
+                    mse += pr**2
+            mse = mse/len(test_set)
+            self.weights[index] = 1./(mser + mse + LogisticRegression_AUE.EPS)
+            
+        if len(self.experts) == LogisticRegression_AUE.K:
+            index = min(self.weights, key=self.weights.get)
+            del self.experts[index]
+            del self.weights[index]
+        
+        T, _, _ = test_set[0]
+        self.experts[T] = LogisticRegression_expert(self.init_w, self.opt)
+        self.weights[T] = 1./(mser + LogisticRegression_AUE.EPS)
+        self.T1[T] = T
+        

@@ -23,7 +23,7 @@ Delta = 0.1
 factor = 1
 NUMBER_OF_BATCHES = 100 #300 # air: 10000, elec:50, moa:100
 
-STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-2, 'hyperplane_fast': 5e-1}
+STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2}
 MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3}
 THRESHOLD = {'default': 0.5}
 
@@ -60,7 +60,8 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
         'sgdOnline': {'zero-one': [0] * b, 'reg': [0]*b},
         'SR' : {'zero-one': [0]*b, 'reg': [0]*b},
         'OB' : {'zero-one': [0]*b, 'reg': [0]*b},
-        'DD': {'zero-one': [0]*b, 'reg': [0]*b}
+        'DD': {'zero-one': [0]*b, 'reg': [0]*b},
+        'AUE': {'zero-one': [0]*b, 'reg': [0]*b}
     }
 
     aware = fresh_model(d)
@@ -80,6 +81,7 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
     #STR = fresh_model(d, OPT)
     OB = fresh_model(d, OPT)
     DD = fresh_model(d, OPT)
+    AUE = models.LogisticRegression_AUE(d, OPT)
     
     drift_detector = MDDM_G()
     #drift_detector = MDDM_A()
@@ -109,6 +111,8 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
         # loss['STR']['zero-one'][time] = STR.zero_one_loss(test_set)
         loss['OB']['zero-one'][time] = OB.zero_one_loss(test_set)
         loss['DD']['zero-one'][time] = DD.zero_one_loss(test_set)
+        # note: AUE has empty set of experts at time 0, and always predicts -1
+        loss['AUE']['zero-one'][time] = AUE.zero_one_loss(test_set)
 
         loss['Aware']['reg'][time] = aware.reg_loss(test_set, mu)
         loss['AwareCarry']['reg'][time] = awareCarry.reg_loss(test_set, mu)
@@ -117,6 +121,9 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
         # loss['STR']['reg'][time] = STR.reg_loss(test_set, mu)
         loss['OB']['reg'][time] = OB.reg_loss(test_set, mu)
         loss['DD']['reg'][time] = DD.reg_loss(test_set, mu)
+        
+        AUE.update_weights(test_set)
+        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k/lam) for k in AUE.weights.keys()]))
 
         # Drift detection
         if (drift_detector.test(DD, test_set) and time != 0):
@@ -206,9 +213,17 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
         #     point = (j, X[j], Y[j])
         #     STR.update_step(point, step_size, mu)
 
-        ob_T1 += lam
+        # ob_T1 += lam
+        # for s in range(rho):
+            # # OB
+            # j = random.randrange(ob_T0, ob_T1)
+            # point = (j, X[j], Y[j])
+            # OB.update_step(point, step_size, mu)
+            
         for s in range(rho):
-            # OB
+            # (slightly more correct) OB
+            if s % 2 == 0 and ob_T0 < S:
+                ob_T1 += 1
             j = random.randrange(ob_T0, ob_T1)
             point = (j, X[j], Y[j])
             OB.update_step(point, step_size, mu)
@@ -222,6 +237,17 @@ def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
                 j = random.randrange(dd_T0, dd_T1)
             point = (j, X[j], Y[j])
             DD.update_step(point, step_size, mu)
+            
+        # AUE ensemble method
+        for T0, expert in AUE.experts.items():
+            for s in range(rho):
+                if s % 2 == 0 and AUE.T1[T0] < S:
+                    j = AUE.T1[T0]
+                    AUE.T1[T0] += 1
+                else:
+                    j = random.randrange(T0, AUE.T1[T0])
+                point = (j, X[j], Y[j])
+                expert.update_step(point, step_size, mu)
 
     return loss
 
@@ -269,6 +295,7 @@ def plot(output, rate, b_in, dataset_name):
         plt.plot(xx, output['SR']['zero-one'][first:last], 'blue', label='SR')
         plt.plot(xx, output['OB']['zero-one'][first:last], 'red', label='OB')
         plt.plot(xx, output['DD']['zero-one'][first:last], 'magenta', label='MDDM')
+        plt.plot(xx, output['AUE']['zero-one'][first:last], 'cyan', label='AUE')
         # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
         # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
         plt.xlabel('Time')
@@ -310,7 +337,8 @@ def median_outputs(output_list, b):
         'SR': {'zero-one': [0] * b, 'reg': [0] * b},
         'sgdOnline': {'zero-one': [0] * b, 'reg': [0] * b},
         'OB' : {'zero-one': [0] * b, 'reg': [0] * b},
-        'DD' : {'zero-one': [0] * b, 'reg': [0] * b}
+        'DD' : {'zero-one': [0] * b, 'reg': [0] * b},
+        'AUE' : {'zero-one': [0] * b, 'reg': [0] * b}
     }
 
     for t in range(b):
@@ -321,6 +349,7 @@ def median_outputs(output_list, b):
         output['sgdOnline']['zero-one'][t] = numpy.median([o['sgdOnline']['zero-one'][t] for o in output_list])
         output['OB']['zero-one'][t] = numpy.median([o['OB']['zero-one'][t] for o in output_list])
         output['DD']['zero-one'][t] = numpy.median([o['DD']['zero-one'][t] for o in output_list])
+        output['AUE']['zero-one'][t] = numpy.median([o['AUE']['zero-one'][t] for o in output_list])
 
         output['Aware']['reg'][t] = numpy.median([o['Aware']['reg'][t] for o in output_list])
         output['AwareCarry']['reg'][t] = numpy.median([o['AwareCarry']['reg'][t] for o in output_list])
@@ -329,13 +358,14 @@ def median_outputs(output_list, b):
         output['sgdOnline']['reg'][t] = numpy.median([o['sgdOnline']['reg'][t] for o in output_list])
         output['OB']['reg'][t] = numpy.median([o['OB']['reg'][t] for o in output_list])
         output['DD']['reg'][t] = numpy.median([o['DD']['reg'][t] for o in output_list])
+        output['AUE']['reg'][t] = numpy.median([o['AUE']['reg'][t] for o in output_list])
 
 
     return output
 
 if __name__ == "__main__":
 
-    dataset_name = 'sea'
+    dataset_name = 'hyperplane_fast'
     prediction_threshold = THRESHOLD['default']
     b = NUMBER_OF_BATCHES
 
@@ -354,10 +384,10 @@ if __name__ == "__main__":
     # X, Y, n, d = data.airline_trim(1900*581, 1600*581)
     # X, Y, n, d = data.airline_trim(1900*500)
     # X, Y, n, d = data.elec()
-    X, Y, n, d = syn_data.sea4()
+    # X, Y, n, d = syn_data.sea4()
     # X, Y, n, d = syn_data.stagger_abrupt()
-    # X, Y, n, d = syn_data.hyperplane_slow()
-    # X, Y, n, d = syn_data.hyperplane_fast()
+    #X, Y, n, d = syn_data.hyperplane_slow()
+    X, Y, n, d = syn_data.hyperplane_fast()
 
 
 
