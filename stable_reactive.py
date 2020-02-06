@@ -21,7 +21,7 @@ T_reactive = 4
 Delta = 0.1
 
 factor = 1
-NUMBER_OF_BATCHES = 34 #300 # air: 10000, elec:50, moa:100
+NUMBER_OF_BATCHES = 100 #300 # air: 10000, elec:50, moa:100
 
 # STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2}
 # MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3}
@@ -37,8 +37,8 @@ THRESHOLD = {'default': 0.5}
 
 # Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [32, 64, 100, 165, 462, 562, 687, 1010, 1042, 1100, 1385, 1582, 1682, 1720,1847], 'elec': [] }
 # Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [1682, 1720,1847], 'elec': [21, 33, 47, 57, 71, 80] }
-Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [31,67], 'elec': [20], 'sea': [25, 50, 75], 'stagger': [50], 'hyperplane_slow': [], 'hyperplane_fast': [], 'sine1' : [20, 40, 60, 80], 'sine1_new' : [20, 40, 60, 80], 'mixed': [20, 40, 60, 80], 'circles': [], 'circles_new': [], 'sea_T': [], 'air_moa': [] }
-# elec: motnt = [ 8, 15, 20], week = [21, 33, 47, 57, 71, 80]
+Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [31,67], 'elec': [20], 'sea': [50], 'stagger': [50], 'hyperplane_slow': [], 'hyperplane_fast': [], 'sine1' : [20, 40, 60, 80], 'sine1_new' : [20, 40, 60, 80], 'mixed': [20, 40, 60, 80], 'circles': [], 'circles_new': [], 'sea_T': [], 'air_moa': [] }
+# elec: motnt = [ 8, 15, 20], week = [21, 33, 47, 57, 71, 80]; 'sea': [25, 50, 75]
 def fresh_model(d, opt= OPT):
     return models.LogisticRegression_expert(numpy.random.rand(d), opt)
 
@@ -418,7 +418,7 @@ def median_outputs(output_list, b):
 if __name__ == "__main__":
 
 
-    dataset_name = 'elec'
+    dataset_name = 'sea'
     prediction_threshold = THRESHOLD['default']
     b = NUMBER_OF_BATCHES
 
@@ -426,8 +426,8 @@ if __name__ == "__main__":
     step_size = STEP_SIZE[dataset_name]
     mu = MU[dataset_name]
 
-    # loss_fn = 'zero-one'
-    loss_fn = 'reg'
+    loss_fn = 'zero-one'
+    #loss_fn = 'reg'
 
     logging.basicConfig(filename='{0}-{1}-b{2}.log'.format(dataset_name, loss_fn, b), filemode='w', level=logging.INFO)
 
@@ -436,7 +436,7 @@ if __name__ == "__main__":
     # X, Y, n, d = data.airline()
     # X, Y, n, d = data.airline_trim(1900*581, 1600*581)
     # X, Y, n, d = data.airline_trim(100*581)
-    X, Y, n, d = data.elec()
+    # X, Y, n, d = data.elec()
     # X, Y, n, d = data.sine1()
     # X, Y, n, d = data.mixed()
     # X, Y, n, d = data.circles()
@@ -445,9 +445,14 @@ if __name__ == "__main__":
     # X, Y, n, d = data.sine1_new()
     # X, Y, n, d = data.circles_new()
 
+    X, Y, n, d = syn_data.sea_abrupt0()
+    # X, Y, n, d = syn_data.sea_abrupt10()
+    # X, Y, n, d = syn_data.sea_abrupt20()
+    #X, Y, n, d = syn_data.sea_abrupt30()
+    
     # X, Y, n, d = syn_data.sea4()
     # X, Y, n, d = syn_data.stagger_abrupt()
-    #X, Y, n, d = syn_data.hyperplane_slow()
+    # X, Y, n, d = syn_data.hyperplane_slow()
     # X, Y, n, d = syn_data.hyperplane_fast()
 
 
@@ -459,7 +464,7 @@ if __name__ == "__main__":
     # print(n, d, b, lam, X[0], Y[0])
     # print(lam)
     rho = int(lam * rate)
-    N = 5
+    N = 1
     outputs = []
     for i in range(N):
         print ({'Trial {0}'.format(i)})

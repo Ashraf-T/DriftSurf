@@ -1,16 +1,16 @@
 import csv
 
 # """
-# SEA, 1 abrupt drift at 50k; 10% noise added
-# WriteStreamToARFFFile -s (ConceptDriftStream -s (generators.SEAGenerator -f 3 -n 10 -b) -d (generators.SEAGenerator -f 2 -n 10 -b) -p 50000 -w 1) -f sea_abrupt.arff -m 100000 -h
+# SEA, 1 abrupt drift at 25k; 10% noise added
+# WriteStreamToARFFFile -s (ConceptDriftStream -s (generators.SEAGenerator -f 3 -p 10 -b) -d (generators.SEAGenerator -f 2 -p 10 -b) -p 25000 -w 1) -f sea_abrupt10.arff -m 50000 -h
 # """
-def sea_abrupt():
-    n = 100000
+def sea_abrupt10():
+    n = 50000
     d = 3+1
     X = []
     Y = []
     
-    with open('data/moa/sea_abrupt.arff') as file:
+    with open('data/moa/sea_abrupt10.arff') as file:
         reader = csv.reader(file, delimiter=',')
         i = 0
         for line in reader:
@@ -25,7 +25,82 @@ def sea_abrupt():
             X.append(features)
             Y.append(label)
             i += 1
-    assert len(X) == 100000
+    assert len(X) == n
+            
+    return X, Y, n, d
+    
+def sea_abrupt0():
+    n = 50000
+    d = 3+1
+    X = []
+    Y = []
+    
+    with open('data/moa/sea_abrupt0.arff') as file:
+        reader = csv.reader(file, delimiter=',')
+        i = 0
+        for line in reader:
+            features = {}
+            for j in range(d-1):
+                features[j] = float(line[j])
+            features[d-1] = 1
+            if line[d-1] == 'groupA':
+                label = 1
+            else:
+                label = -1
+            X.append(features)
+            Y.append(label)
+            i += 1
+    assert len(X) == n
+            
+    return X, Y, n, d
+    
+def sea_abrupt20():
+    n = 50000
+    d = 3+1
+    X = []
+    Y = []
+    
+    with open('data/moa/sea_abrupt20.arff') as file:
+        reader = csv.reader(file, delimiter=',')
+        i = 0
+        for line in reader:
+            features = {}
+            for j in range(d-1):
+                features[j] = float(line[j])
+            features[d-1] = 1
+            if line[d-1] == 'groupA':
+                label = 1
+            else:
+                label = -1
+            X.append(features)
+            Y.append(label)
+            i += 1
+    assert len(X) == n
+            
+    return X, Y, n, d
+    
+def sea_abrupt30():
+    n = 50000
+    d = 3+1
+    X = []
+    Y = []
+    
+    with open('data/moa/sea_abrupt30.arff') as file:
+        reader = csv.reader(file, delimiter=',')
+        i = 0
+        for line in reader:
+            features = {}
+            for j in range(d-1):
+                features[j] = float(line[j])
+            features[d-1] = 1
+            if line[d-1] == 'groupA':
+                label = 1
+            else:
+                label = -1
+            X.append(features)
+            Y.append(label)
+            i += 1
+    assert len(X) == n
             
     return X, Y, n, d
 
