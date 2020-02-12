@@ -20,8 +20,6 @@ from collections import defaultdict
 import operator
 import logging
 
-# default number of time steps
-b = 100
 
 class Opt:
     """
@@ -48,19 +46,13 @@ class Model:
     Methods
     -------
     update_step(training_point, step_size, mu)
-        based on the optimization problem solver calls the proper updating method
+        based on the optimization problem, solver calls the proper updating method
 
     sgd_step(training_point, step_size, mu)
-        updates the model using sgd method in single model setting
+        updates the model using sgd method in the single model setting
 
     saga_step(training_point, step_size, mu)
-        updates the model using saga method in single model setting
-
-    sgd_step(training_point, step_size, mu, key)
-        updates the model using sgd method in ensemble setting
-
-    saga_step(training_point, step_size, mu, key)
-        updates the model using saga method in ensemble setting
+        updates the model using saga method in the single model setting
 
     loss(data)
         computes the logistic loss for the given dataset
@@ -93,7 +85,7 @@ class Model:
             return 1
 
     def sgd_step(self, training_point, step_size, mu):
-        """updates the model using sgd method in single model setting
+        """updates the model using sgd method in the single model setting
 
         :param training_point: tuple : (int, {int:float}, int)
             training data point in form of (i, x, y) where i is its index, x is a dictionary of the
@@ -111,7 +103,7 @@ class Model:
         raise NotImplementedError()
 
     def saga_step(self, training_point, step_size, mu):
-        """updates the model using saga method in single model setting
+        """updates the model using saga method in the single model setting
 
         :param training_point: tuple : (int, {int:float}, int)
             training data point in form of (i, x, y) where i is its index, x is a dictionary of the
@@ -120,44 +112,6 @@ class Model:
             step size used to update the model
         :param mu: float
             L2-regularization const
-
-        :raise NotImplementedError
-            This abstract method will be override in the derived classes
-        """
-
-        raise NotImplementedError()
-
-    def sgd_step(self, training_point, step_size, mu, key):
-        """updates the model using sgd method in ensemble setting
-
-        :param training_point: tuple : (int, {int:float}, int)
-            training data point in form of (i, x, y) where i is its index, x is a dictionary of the
-            features (key, value) pairs, and y is the label which can be either 1 or -1
-        :param step_size: float
-            step size used to update the model
-        :param mu: float
-            L2-regularization const
-        :param key: int
-                    expert index in the ensemble
-
-        :raise NotImplementedError
-            This abstract method will be override in the derived classes
-        """
-
-        raise NotImplementedError()
-
-    def saga_step(self, training_point, step_size, mu, key):
-        """updates the model using saga method in ensemble setting
-
-        :param training_point: tuple : (int, {int:float}, int)
-            training data point in form of (i, x, y) where i is its index, x is a dictionary of the
-            features (key, value) pairs, and y is the label which can be either 1 or -1
-        :param step_size: float
-            step size used to update the model
-        :param mu: float
-            L2-regularization const
-        :param key: int
-                    expert index in the ensemble
 
         :raise NotImplementedError
             This abstract method will be override in the derived classes
@@ -191,7 +145,6 @@ class Model:
         """
 
         raise NotImplementedError()
-
 
 class LogisticRegression_expert(Model):
     """
@@ -255,7 +208,7 @@ class LogisticRegression_expert(Model):
         updates the effective sample set
     """
 
-    def __init__(self, init_w, opt, current_pointer=0, weight=1, perf=0.5):
+    def __init__(self, init_param, opt, buffer_pointer=0):
         """
 
         :param init_w: ndarray
@@ -270,20 +223,15 @@ class LogisticRegression_expert(Model):
             performance of the expert (default is 0.5)
         """
 
-        self.param = numpy.copy(init_w)
+        self.param = init_param
         self.opt = opt
 
-        self.T_pointers = (current_pointer, current_pointer)
-        self.T_set = []
-        self.T_size = 0
+        self.T_pointers = (buffer_pointer, buffer_pointer)
 
         self.table = {}
         self.table_sum = numpy.zeros(self.param.shape)
 
-        self.weight = weight
-        self.perf = perf
-        self.perf_prev = perf
-
+        self.perf = (None, None, None) # current, previous, best observed
 
     def dot_product(self, x):
         """ computes the dot product of input x's features and the model parameter
@@ -402,65 +350,37 @@ class LogisticRegression_expert(Model):
             return 0
         return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
 
-    def mean_absolute_percentage_error(self, data, threshold=0.5):
-        """ mean absolute percentage error for the given data
 
-        :param data: list of tuples : [(int, {int:float}, int)]
-            a list of data points
-        :param threshold: float
-            cut off threshold for prediction (default 0.5)
-
-        :return: float
-            returns the mean absolute percentage error for the given data
-        """
-        out = 0
-        for (i, x, y) in data:
-            out += (y - self.predict(x, threshold=threshold))/y
-        return out*100./len(data)
-
-    def update_weight(self, new_weight):
-        """
-
-        :param new_weight:
-        """
-
-        self.weight = new_weight
-
-    def expert_effective_set(self):
-        """ returns the information related to the expert's effective sample set
-
-        :return: tuples : ((int, int), list, int)
-            returns the pointers to the begining and end indeces of the effective sample set along with the effective
-            sample set and its size
-        """
-
-        return self.T_pointers, self.T_set, self.T_size
-
-    def update_effective_set(self, new_pointer, update_start=False, new_set=[], new_T_size=0):
+    def update_effective_set(self, new_buffer_pointer):
         """ updates the effective sample set
 
         :param new_pointer: int
             new pointer for the ending pointer
-        :param update_start: bool
-            determines if you need to update the starting pointer too or not (default = False)
-        :param new_set: list
-            updated effective sample set (default = [])
-        :param new_T_size: int
-            size of the updated effective sample set (default = 0)
         """
 
         lst = list(self.T_pointers)
-        lst[1] = new_pointer
-        if update_start:
-            lst[0] = new_pointer
+        lst[1] = new_buffer_pointer
         self.T_pointers = (lst[0], lst[1])
-        self.T_size = new_T_size
-        self.T_set = numpy.copy(new_set)
 
+    def update_perf(self, current_perf):
+        (current, previous, best) = self.perf
+        previous = current
+        current = current_perf
+        if not best or current < best:
+            best = current
+        self.perf = (current, previous, best)
 
-class LogisticRegression_StableReactive(Model):
+    def get_current_perf(self):
+        (current, previous, best) = self.perf
+        return current
+
+    def get_best_perf(self):
+        (current, previous, best) = self.perf
+        return best
+
+class LogisticRegression_DSURF:
     """
-    A class to define stable-reactive states which is a children of Model
+    A class to define DriftSurf Method
 
     Attributes
     ----------
@@ -471,7 +391,10 @@ class LogisticRegression_StableReactive(Model):
 
     """
 
-    def __init__(self, init_param, opt, current_pointer, delta, loss = 'reg'):
+    REG = 'reg'
+    ACC = 'zero-one'
+
+    def __init__(self, d, opt, delta, loss_fn):
         """
         :param init_param:
         :param opt:
@@ -479,46 +402,22 @@ class LogisticRegression_StableReactive(Model):
         :param current_pointer
         """
 
-        self.init_param = init_param
+        # self.init_w = numpy.random.rand(d)
+        # self.opt = opt
+
+
+        # self.init_param = numpy.random.rand(d)
+        self.d = d
         self.opt = opt
-        self.pointer_buff = current_pointer
-        self.stable = True # stable or reactive
+        self.stable = True
+        self.loss_fn = loss_fn
         self.delta = delta
         self.sample_reactive = []
 
-        self.loss_fn = loss
-
-        self.experts = {
-                        'main' :
-                            {
-                                'expert' : LogisticRegression_expert(numpy.copy(init_param), self.opt, current_pointer),
-                                'best_observed_perf' : None,
-                                'prev_perf' : None,
-                                'current_perf' : None
-                            },
-                        'new_stable' :
-                            {
-                                'expert' : None,
-                                'best_observed_perf' : None,
-                                'prev_perf': None,
-                                'current_perf': None
-                            },
-                        'new_reactive' :
-                            {
-                                'expert' : None,
-                                'best_observed_perf' : None,
-                                'prev_perf' : None,
-                                'current_perf': None
-                            },
-                        'frozen':
-                            {
-                                'expert' : LogisticRegression_expert(numpy.copy(init_param), self.opt, current_pointer),
-                                'best_observed_perf': None,
-                                'prev_perf': None,
-                                'current_perf': None
-                            }
-                         }
-        # self.reactive_frozen_expert = None
+        self.expert_predictive = LogisticRegression_expert(numpy.random.rand(d), self.opt)
+        self.expert_stable = None
+        self.expert_reactive = None
+        self.expert_frozen = None #LogisticRegression_expert(self.init_param, self.opt),
 
 
     def get_stable(self):
@@ -528,50 +427,6 @@ class LogisticRegression_StableReactive(Model):
         """
         return self.stable
 
-
-    def create_new_expert(self, current_pointer):
-        """
-
-        :param current_pointer:
-        :return:
-        """
-
-        if self.stable:
-            expert = 'new_stable'
-        else:
-            expert = 'new_reactive'
-
-        self.experts[expert]['expert'] = LogisticRegression_expert(numpy.copy(self.init_param), self.opt, current_pointer)
-        self.experts[expert]['current_perf'] = None
-        self.experts[expert]['prev_perf'] = None
-        self.experts[expert]['best_observed_perf'] = None
-
-
-
-    def update_best_observed_perf(self):
-        """
-
-        :return:
-        """
-        for key in self.experts.keys():
-            if self.experts[key]['expert'] != None:
-                if self.experts[key]['best_observed_perf'] == None:
-                    self.experts[key]['best_observed_perf'] = self.experts[key]['current_perf']
-                else:
-                    self.experts[key]['best_observed_perf'] = min(self.experts[key]['best_observed_perf'], self.experts[key]['current_perf'])
-
-
-    def predictive_model(self):
-        """
-
-        :return:
-        """
-
-        if self.experts['new_reactive']['expert'] != None and self.experts['new_reactive']['current_perf'] != None and self.experts['main']['current_perf'] > self.experts['new_reactive']['current_perf']:
-            return 'new_reactive'
-        else:
-            return 'main'
-
     def update_perf_all(self, data, mu):
         """
 
@@ -580,33 +435,28 @@ class LogisticRegression_StableReactive(Model):
         :return:
         """
 
-        for key in self.experts.keys():
-            if self.experts[key]['current_perf'] != None:
-                self.experts[key]['prev_perf'] = self.experts[key]['current_perf']
+        current_perf = self.expert_predictive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_predictive.zero_one_loss(data)
+        self.expert_predictive.update_perf(current_perf)
 
-            if self.experts[key]['expert'] != None:
-                if self.loss_fn == 'reg':
-                    self.experts[key]['current_perf'] = self.experts[key]['expert'].reg_loss(data, mu)
-                else:
-                    self.experts[key]['current_perf'] = self.experts[key]['expert'].zero_one_loss(data)
+        if self.stable:
+            if self.expert_stable:
+                current_perf = self.expert_stable.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_stable.zero_one_loss(data)
+                self.expert_stable.update_perf(current_perf)
+        else:
+            current_perf = self.expert_reactive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_reactive.zero_one_loss(data)
+            self.expert_reactive.update_perf(current_perf)
 
 
-    def update_perf(self, key, data, mu):
+    def predictive_model(self):
         """
 
-        :param data:
-        :param predict_threshold:
         :return:
         """
 
-        if self.experts[key]['current_perf'] != None:
-            self.experts[key]['prev_perf'] = self.experts[key]['current_perf']
-
-        if self.loss_fn == 'reg':
-            self.experts[key]['current_perf'] = self.experts[key]['expert'].reg_loss(data, mu)
+        if not self.stable and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
+            return self.expert_reactive
         else:
-            self.experts[key]['current_perf'] = self.experts[key]['expert'].zero_one_loss(data)
-
+            return self.expert_predictive
 
 
     def zero_one_loss(self, data, threshold=0.5):
@@ -617,7 +467,7 @@ class LogisticRegression_StableReactive(Model):
         :return:
         """
 
-        return self.experts[self.predictive_model()]['expert'].zero_one_loss(data, threshold)
+        return self.predictive_model().zero_one_loss(data, threshold)
 
 
     def reg_loss(self, data, mu):
@@ -631,7 +481,7 @@ class LogisticRegression_StableReactive(Model):
         :return: float
             returns L2-regularized logistic loss for the given data
         """
-        return self.experts[self.predictive_model()]['expert'].reg_loss(data, mu)
+        return self.predictive_model().reg_loss(data, mu)
 
 
     def predict(self, x, threshold=0.5):
@@ -641,38 +491,28 @@ class LogisticRegression_StableReactive(Model):
         :param threshold:
         :return:
         """
-        return self.experts[self.predictive_model()]['expert'].predict(x, threshold)
-
-
-    def update_buffer_pointer(self, pointer_buff):
-        """
-
-        :param pointer_buff:
-        :return:
-        """
-        self.pointer_buff = pointer_buff
+        return self.predictive_model().predict(x, threshold)
 
 
     def enter_reactive_condition1(self):
 
-        condition1 = (self.experts['main']['current_perf'] > self.experts['main']['best_observed_perf'] + self.delta)
+        condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_best_perf() + self.delta
         if condition1:
-            logging.info('condition 1')
+            logging.info('condition 1 holds')
 
         return condition1
 
 
     def enter_reactive_condition2(self):
 
-        condition2 = (self.experts['new_stable']['expert']!=None and self.experts['main']['current_perf'] > self.experts['new_stable']['current_perf'] + self.delta/2)
-
+        condition2 = (self.expert_stable) and self.expert_predictive.get_current_perf() > self.expert_stable.get_current_perf() + self.delta/2
         if condition2:
-            logging.info('condition 2')
+            logging.info('condition 2 holds')
 
         return condition2
 
 
-    def enter_reactive(self, current_pointer, data, mu):
+    def enter_reactive(self, buffer_pointer, data, mu):
         """
 
         :param current_pointer:
@@ -680,15 +520,14 @@ class LogisticRegression_StableReactive(Model):
         :param mu:
         :return:
         """
-        if self.stable and ( self.enter_reactive_condition1() or self.enter_reactive_condition2()):
 
+        if self.stable and (self.enter_reactive_condition1() or self.enter_reactive_condition2()):
             self.stable = False
+            self.expert_reactive = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer)
+            current_perf = self.expert_reactive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_reactive.zero_one_loss(data)
+            self.expert_reactive.update_perf(current_perf)
 
-            self.create_new_expert(current_pointer)
-            self.update_perf('new_reactive', data, mu) # we need to know the current perf of this expert to make the greedy decision next time step
-
-            self.experts['frozen']['expert'] = LogisticRegression_expert(numpy.copy(self.experts['main']['expert'].param), self.opt, current_pointer)
-            # self.experts['frozen']['expert'].__dict__ = self.experts['main']['expert'].__dict__.copy()
+            self.expert_frozen = LogisticRegression_expert(numpy.copy(self.expert_predictive.param), self.opt)
 
             return True
 
@@ -697,40 +536,32 @@ class LogisticRegression_StableReactive(Model):
 
     def switch_after_reactive(self, mu):
 
-        if self.loss_fn == 'reg':
-            perf_frozen = self.experts['frozen']['expert'].reg_loss(self.sample_reactive, mu)
-            perf_new = self.experts['new_reactive']['expert'].reg_loss(self.sample_reactive, mu)
-        else:
-            perf_frozen = self.experts['frozen']['expert'].zero_one_loss(self.sample_reactive)
-            perf_new = self.experts['new_reactive']['expert'].zero_one_loss(self.sample_reactive)
+        perf_frozen = self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
+        perf_reactive = self.expert_reactive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_reactive.zero_one_loss(self.sample_reactive)
 
-        logging.info(('frozen {0}, new {1}').format(perf_frozen, perf_new))
+        logging.info(('Performance of frozen : {0}, reactive : {1}').format(perf_frozen, perf_reactive))
 
-        return (perf_frozen > perf_new)
+        return (perf_frozen > perf_reactive)
 
 
-    def exit_reactive(self, current_pointer, mu):
+    def exit_reactive(self, buffer_pointer, mu):
         """
 
         :param predict_threshold:
         :return:
         """
 
-
-        ret_expert = 'old' # default decision is to choose the old one, unless the new one performs better
+        self.stable = True
 
         if self.switch_after_reactive(mu):
-            self.experts['main']['expert'].__dict__ = self.experts['new_reactive']['expert'].__dict__.copy()
-            self.experts['main']['current_perf'] = self.experts['new_reactive']['current_perf']
-            self.experts['main']['prev_perf'] = self.experts['new_reactive']['prev_perf']
-            self.experts['main']['best_observed_perf'] = self.experts['new_reactive']['best_observed_perf']
-            ret_expert = 'new'
+            self.expert_predictive.__dict__ = self.expert_reactive.__dict__.copy()
 
-        self.stable = True
-        self.create_new_expert(current_pointer)
-        # self.update_perf('new_stable', data, predict_threshold)
-        self.sample_reactive = []
-        logging.info('exit reactive state with {0}'.format(ret_expert))
+            self.expert_stable = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer)
+            self.sample_reactive = []
+
+            logging.info('exit reactive state with new')
+        else:
+            logging.info('exit reactive state with old')
 
 
     def update_reactive_sample_set(self, data):
@@ -748,10 +579,11 @@ class LogisticRegression_AUE:
     
     def __init__(self, d, opt):
         self.init_w = numpy.random.rand(d)
+        self.d = d
         self.opt = opt
         self.experts = {}
         self.weights = {}
-        self.T1 = {}
+        # self.T1 = {}
     
     def predict(self, x, predict_threshold=0.5):
         wp = 0
@@ -767,40 +599,6 @@ class LogisticRegression_AUE:
 
         return 1 if wp > wn else -1
 
-    # def pr(self, x, predict_threshold=0.5):
-    #     wp = 0
-    #     wn = 0
-    #
-    #     for index in self.experts.keys():
-    #         expert, weight = self.experts[index], self.weights[index]
-    #
-    #         if (expert.predict(x, predict_threshold) == 1):
-    #             wp += weight
-    #         else:
-    #             wn += weight
-    #
-    #     return wp/(wp+wn)
-    #
-    #
-    #
-    # def reg_loss(self, data, mu):
-    #
-    #     if len(data) == 0:
-    #         return 0
-    #     else:
-    #         loss = sum(numpy.log(1 + numpy.exp(-1 * y * self.pr(x))) for (i, x, y) in data) / len(data)
-            # or it should be
-            # loss = 0
-            # for (i, x, y) in data:
-            #     loss_d = 0
-            #     for k in self.experts.keys():
-            #         loss_d += self.weights[k] * numpy.log(1 + numpy.exp(-1 * y * self.experts[k].dot_product(x)))
-            #     loss += loss_d
-            # loss /= len(data)
-    #         reg = 0
-    #         for k in self.weights.keys():
-    #             reg += self.weights[k] * 0.5 * mu * numpy.dot(self.experts[k].param, self.experts[k].param)
-    #         return loss + reg
 
     def zero_one_loss(self, data, predict_threshold=0.5):
         if len(data) == 0:
@@ -828,9 +626,9 @@ class LogisticRegression_AUE:
             del self.weights[index]
         
         T, _, _ = test_set[0]
-        self.experts[T] = LogisticRegression_expert(self.init_w, self.opt)
+        self.experts[T] = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, T)
         self.weights[T] = 1./(mser + LogisticRegression_AUE.EPS)
-        self.T1[T] = T
+        # self.T1[T] = T
         self.normalize_weights()
 
     def normalize_weights(self):

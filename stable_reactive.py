@@ -8,482 +8,250 @@ import pickle
 import models as models
 import math
 from matplotlib.patches import Polygon
-import read_data as data
-import syn_data as syn_data
+# import read_data as data
+# import syn_data as syn_data
+import dataset as data
 import logging
 from drift_detection.__init__ import *
 
+# dataset = {
+#     'rcv': {'n': 20242, 'd': 47237, 'b': 100, 'step_size': 5e-1, 'mu': 1e-5, 'T_reactive': 4,
+#             'drift_time': [30, 60]},
+#     'covtype': {'n': 581012, 'd': 55, 'b': 100, 'step_size': 5e-3, 'mu': 1e-4, 'T_reactive': 4,
+#                 'drift_time': [30, 60]},
+#     'pow': {'n': 29928, 'd': 3, 'b': 100, 'step_size': 2e-2, 'mu': 1e-3, 'T_reactive': 4,
+#             'drift_time': [17, 47, 76]},
+#     'air-100': {'n': 58100, 'd': 13, 'b': 100, 'step_size': 2e-2, 'mu': 1e-3, 'T_reactive': 4,
+#                 'drift_time': [31, 67]},
+#     'elec': {'n': 45312, 'd': 14, 'b': 34, 'step_size': 1e-1, 'mu': 1e-4, 'T_reactive': 1, 'drift_time': [20]},
+#     'sea': {'n': 100000, 'd': 4, 'b': 100, 'step_size': 1e-3, 'mu': 1e-2, 'T_reactive': 4,
+#             'drift_time': [25, 50, 75]},
+#     'hyperplane_slow': {'n': 100000, 'd': 3, 'b': 100, 'step_size': 1e-1, 'mu': 1e-3, 'T_reactive': 4,
+#                         'drift_time': []},
+#     'hyperplane_fast': {'n': 100000, 'd': 11, 'b': 100, 'step_size': 1e-2, 'mu': 1e-3, 'T_reactive': 4,
+#                         'drift_time': []},
+#     'sine1_new': {'n': 10000, 'd': 3, 'b': 100, 'step_size': 2e-1, 'mu': 1e-3, 'T_reactive': 4,
+#                   'drift_time': [20, 40, 60, 80]}
+# }
 
-OPT = models.Opt.SAGA
-OPT_sgd = models.Opt.SGD
+class experiments():
 
-T_reactive = 4
-Delta = 0.1
+    OPT = models.Opt.SAGA
+    OPT_sgd = models.Opt.SGD
 
-factor = 1
-NUMBER_OF_BATCHES = 100 #300 # air: 10000, elec:50, moa:100
+    def __init__(self, dataset:str, r=4, delta=0.2, rate=2, loss_fn='zero-one', algo_names=['Aware','DD', 'AUE', 'DSURF']):
 
-# STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2}
-# MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3}
+        self.algorithms = algo_names
+        self.loss = {}
 
+        self.dataset_name = dataset
+        self.X, self.Y, self.n, self.d, self.mu, self.step_size, self.b, self.drift_times = getattr(data, dataset_name)()
+        self.lam = int(self.n//self.b)
+        self.rho = int(self.lam * rate)
+        self.S = 0
 
-# STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 2e-2, 'air': 2e-2, 'elec': 2e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2, 'sine1' : 1e-1, 'mixed': 0.2, 'circles': 1e-1, 'sea_T': 2e-1, 'air_moa': 1e-1}
-# MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-5, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3, 'sine1': 1e-5, 'mixed': 1e-5, 'circles': 1e-3, 'sea_T': 1e-3, 'air_moa': 1e-2}
-#New
-STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'a9a': 5e-3, 'lux' : 5e-2, 'pow': 1e-1, 'air': 2e-2, 'elec': 1e-1, 'sea': 1e-3, 'stagger': 1e-1, 'hyperplane_slow': 1e-1, 'hyperplane_fast': 1e-2, 'sine1' : 1e-1, 'sine1_new' : 2e-1, 'mixed': 0.2, 'circles': 1e-1, 'circles_new': 2e-1, 'sea_T': 2e-1, 'air_moa': 1e-1}
-MU        = {'rcv': 1e-5, 'covtype': 1e-4, 'a9a': 1e-3, 'lux' : 1e-3, 'pow': 1e-3, 'air': 1e-3, 'elec' : 1e-4, 'sea': 1e-2, 'stagger': 1e-5, 'hyperplane_slow': 1e-3, 'hyperplane_fast': 1e-3, 'sine1': 1e-5, 'sine1_new' : 1e-3, 'mixed': 1e-5, 'circles': 1e-3, 'circles_new': 1e-2, 'sea_T': 1e-3, 'air_moa': 1e-2}
+        self.DSURF_delta = delta
+        self.DSURF_loss_fn = loss_fn
+        self.DSURF_t = 0
+        self.DSURF_r = r
 
-THRESHOLD = {'default': 0.5}
+        self.DSURF = models.LogisticRegression_DSURF(self.d, experiments.OPT, self.DSURF_delta, self.DSURF_loss_fn)
+        self.AUE = models.LogisticRegression_AUE(self.d, experiments.OPT)
+        self.DD = models.LogisticRegression_expert(numpy.random.rand(self.d), experiments.OPT)
+        self.Aware = models.LogisticRegression_expert(numpy.random.rand(self.d), experiments.OPT)
 
-# Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [32, 64, 100, 165, 462, 562, 687, 1010, 1042, 1100, 1385, 1582, 1682, 1720,1847], 'elec': [] }
-# Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [1682, 1720,1847], 'elec': [21, 33, 47, 57, 71, 80] }
-Drift_Times = {'lux': [], 'pow': [17, 47, 76], 'air': [31,67], 'elec': [20], 'sea': [50], 'stagger': [50], 'hyperplane_slow': [], 'hyperplane_fast': [], 'sine1' : [20, 40, 60, 80], 'sine1_new' : [20, 40, 60, 80], 'mixed': [20, 40, 60, 80], 'circles': [], 'circles_new': [], 'sea_T': [], 'air_moa': [] }
-# elec: motnt = [ 8, 15, 20], week = [21, 33, 47, 57, 71, 80]; 'sea': [25, 50, 75]
-def fresh_model(d, opt= OPT):
-    return models.LogisticRegression_expert(numpy.random.rand(d), opt)
+        self.DD_drift_detector = MDDM_G()
 
-def fresh_Ensemble_model(d, OPT, current_time=0, max_time=NUMBER_OF_BATCHES, current_pointer=0, carry_over_function=True, generate_multiple_experts=True, weight_of_experts=[1], perf_of_experts=[0], number_of_experts=1, starting_id=1):
-    return models.LogisticRegression_Ensemble(numpy.random.rand(d), OPT, current_time, max_time, current_pointer, carry_over_function, generate_multiple_experts, weight_of_experts, perf_of_experts, number_of_experts, starting_id)
+        for algo in self.algorithms:
+            self.loss[algo] = [0] * self.b
 
-def fresh_StableReactive_model(d, OPT, current_pointer = 0, delta = Delta, loss_fn = 'reg'):
-    return models.LogisticRegression_StableReactive(numpy.random.rand(d), OPT, current_pointer, delta, loss_fn)
-
-
-"""
-X, Y: data
-n: number of points
-d: dimension of data
-b: length of stream
-lam: lambda, constant arrivals
-W: window size, in multiples of lambda
-"""
+        logging.info('initialized')
+        logging.info('1 - dataset : {0}, n : {1}, b : {2}'.format(self.dataset_name, self.n, self.b))
 
 
-def process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name):
+    def read_data(dataset_name):
+        return getattr(data, dataset_name)()
 
-    loss = {
-        'Aware': {'zero-one': [0] * b, 'reg': [0]*b},
-        'AwareCarry': {'zero-one': [0] * b, 'reg': [0]*b},
-        # 'STR': {'zero-one': [0] * b, 'reg': [0]*b},
-        'sgdOnline': {'zero-one': [0] * b, 'reg': [0]*b},
-        'SR' : {'zero-one': [0]*b, 'reg': [0]*b},
-        'OB' : {'zero-one': [0]*b, 'reg': [0]*b},
-        'DD': {'zero-one': [0]*b, 'reg': [0]*b},
-        'AUE': {'zero-one': [0]*b, 'reg': [0]*b}
-    }
+    def update_loss(self, test_set, time):
 
-    aware = fresh_model(d)
-    awareCarry = fresh_model(d)
+        for algo in self.algorithms:
+            self.loss[algo][time] = getattr(self, algo).zero_one_loss(test_set)
 
-    aware_T0 = 0
-    str_T0 = 0
-    aware_T1 = 0
-    str_T1 = 0
-    ob_T0 = 0
-    ob_T1 = 0
-    dd_T0 = 0
-    dd_T1 = 0
 
-    sgd = fresh_model(d, OPT_sgd)
-    sr = fresh_StableReactive_model(d, OPT, loss_fn=loss_fn)
-    #STR = fresh_model(d, OPT)
-    OB = fresh_model(d, OPT)
-    DD = fresh_model(d, OPT)
-    AUE = models.LogisticRegression_AUE(d, OPT)
-    
-    drift_detector = MDDM_G()
-    #drift_detector = MDDM_A()
-    #drift_detector = MDDM_E()
-    #drift_detector = DDM()
-    #drift_detector = EDDM()
-    #drift_detector = ADWINChangeDetector()
+    def process_DD(self, time, new_batch):
 
-    sr_t = 0
-    S = 0  # S_i is [0:S]
-
-    for time in range(b):
-
-        print(time)
-
-        if time in Drift_Times[dataset_name]:
-            aware = fresh_model(d, OPT)     #if not carry-over
-            aware_T0 = lam * time
-            aware_T1 = aware_T0
-
-        # measure accuracy over upcoming batch
-        test_set = [(i, X[i], Y[i]) for i in range(S, S + lam)]
-        loss['Aware']['zero-one'][time] = aware.zero_one_loss(test_set)
-        loss['AwareCarry']['zero-one'][time] = awareCarry.zero_one_loss(test_set)
-        loss['sgdOnline']['zero-one'][time] = sgd.zero_one_loss(test_set)
-        loss['SR']['zero-one'][time] = sr.zero_one_loss(test_set)
-        # loss['STR']['zero-one'][time] = STR.zero_one_loss(test_set)
-        loss['OB']['zero-one'][time] = OB.zero_one_loss(test_set)
-        loss['DD']['zero-one'][time] = DD.zero_one_loss(test_set)
-        # note: AUE has empty set of experts at time 0, and always predicts -1
-        loss['AUE']['zero-one'][time] = AUE.zero_one_loss(test_set)
-
-        loss['Aware']['reg'][time] = aware.reg_loss(test_set, mu)
-        loss['AwareCarry']['reg'][time] = awareCarry.reg_loss(test_set, mu)
-        loss['sgdOnline']['reg'][time] = sgd.reg_loss(test_set, mu)
-        loss['SR']['reg'][time] = sr.reg_loss(test_set, mu)
-        # loss['STR']['reg'][time] = STR.reg_loss(test_set, mu)
-        loss['OB']['reg'][time] = OB.reg_loss(test_set, mu)
-        loss['DD']['reg'][time] = DD.reg_loss(test_set, mu)
-
-        AUE.update_weights(test_set)
-        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k/lam) for k in AUE.weights.keys()]))
-
-        # Drift detection
-        if (drift_detector.test(DD, test_set) and time != 0):
-            DD = fresh_model(d, OPT)
-            dd_T0 = S
-            dd_T1 = dd_T0
-            drift_detector.reset()
+        if (self.DD_drift_detector.test(self.DD, new_batch) and time != 0):
+            self.DD = models.LogisticRegression_expert(numpy.random.rand(self.d), self.OPT, self.S)
+            self.DD_drift_detector.reset()
             logging.info('DD drift detected, reset model : {0}'.format(time))
 
-        S_prev = S
-        S += lam
+        self.update_model(self.DD)
 
-        # SR algo process
-        sr.update_perf_all(data = test_set, mu=mu)
-        sr.update_best_observed_perf()
+    def process_AUE(self, time, new_batch):
+        self.AUE.update_weights(new_batch)
+        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.weights.keys()]))
+        for index, expert in self.AUE.experts.items():
+            self.update_model(expert)
 
-        if sr.get_stable():
+    def update_model(self, model):
+        if model:
+            lst = list(model.T_pointers)
+            for s in range(self.rho):
+                if s % 2 == 0 and lst[1] < self.S + self.lam:
+                    j = lst[1]
+                    lst[1] += 1
+                else:
+                    j = random.randrange(lst[0], lst[1])
+                point = (j, self.X[j], self.Y[j])
+                model.update_step(point, self.step_size, self.mu)
+            model.update_effective_set(lst[1])
 
-            if sr.enter_reactive(current_pointer=S_prev, data=test_set, mu=mu):
-                sr_t = 0
-                logging.info('enter reactive state : {0}'.format(time))
+    def process_DSURF(self, time, new_batch):
+        self.DSURF.update_perf_all(new_batch, self.mu)
+
+        if self.DSURF.stable:
+            if self.DSURF.enter_reactive(self.S, new_batch, self.mu):
+                self.DSURF_t = 0
+                logging.info('DSURF enters reactive state : {0}'.format(time))
 
             else:
                 # update models
-                for key in ['main', 'new_stable']:
-                    if sr.experts[key]['expert'] != None:
-                        T_pointers, _, _ = sr.experts[key]['expert'].expert_effective_set()
-                        lst = list(T_pointers)
-                        for s in range(int(rho)):
-                            if s % 2 == 0 and lst[1] < S:
-                                j = lst[1]
-                                lst[1] += 1
-                            else:
-                                j = random.randrange(lst[0], lst[1])
-                            point = (j, X[j], Y[j])
-                            sr.experts[key]['expert'].update_step(point, step_size, mu)
-                        sr.experts[key]['expert'].update_effective_set(new_pointer=lst[1])
+                self.update_model(self.DSURF.expert_predictive)
+                self.update_model(self.DSURF.expert_stable)
 
-        if not sr.get_stable():
+        if not self.DSURF.stable:
             # update models
-            sr.update_reactive_sample_set(data=test_set)
-            for key in ['main', 'new_reactive']:
-               # print(sr.experts[key]['current_perf'])
-               T_pointers, _, _ = sr.experts[key]['expert'].expert_effective_set()
-               lst = list(T_pointers)
-               for s in range(int(rho)):
-                   if s % 2 == 0 and lst[1] < S:
-                       j = lst[1]
-                       lst[1] += 1
-                   else:
-                       j = random.randrange(lst[0], lst[1])
-                   point = (j, X[j], Y[j])
-                   sr.experts[key]['expert'].update_step(point, step_size, mu)
-               sr.experts[key]['expert'].update_effective_set(new_pointer=lst[1])
+            self.DSURF.update_reactive_sample_set(new_batch)
+            self.update_model(self.DSURF.expert_predictive)
+            self.update_model(self.DSURF.expert_reactive)
 
-            sr_t += 1
-            if sr_t == T_reactive:
-                sr.exit_reactive(current_pointer=S, mu=mu)
+            self.DSURF_t += 1
+            if self.DSURF_t == self.DSURF_r :
+                self.DSURF.exit_reactive(self.S+self.lam, self.mu)
 
-        # sgdOnline
-        sgdOnline_T = S_prev
-        for s in range(min(lam, rho)):
-            if sgdOnline_T < S:
-                j = sgdOnline_T
-                sgdOnline_T += 1
-            point = (j, X[j], Y[j])
-            sgd.update_step(point, step_size, mu)
+    def process(self):
 
-        for s in range(rho):
+        for time in range(self.b):
+
+            print(time)
+
+            if time in self.drift_times:
+                self.Aware = models.LogisticRegression_expert(numpy.random.rand(self.d), self.OPT, self.S)
+
+            # measure accuracy over upcoming batch
+            test_set = [(i, self.X[i], self.Y[i]) for i in range(self.S, self.S + self.lam)]
+            self.update_loss(test_set, time)
+
+            # AUE
+            self.process_AUE(time, test_set)
+
+            # DD
+            self.process_DD(time, test_set)
+
+            # DSURF
+            self.process_DSURF(time, test_set)
+
             # Aware
-            if s % 2 == 0 and aware_T1 < S:
-                j = aware_T1
-                aware_T1 += 1
-            else:
-                j = random.randrange(aware_T0, aware_T1)
-            point = (j, X[j], Y[j])
-            aware.update_step(point, step_size, mu)
-            awareCarry.update_step(point, step_size, mu)
+            self.update_model(self.Aware)
 
-        # for s in range(rho):
-        #     # STR
-        #     if s % 2 == 0 and str_T1 < S:
-        #         j = str_T1
-        #         str_T1 += 1
-        #     else:
-        #         j = random.randrange(str_T0, str_T1)
-        #     point = (j, X[j], Y[j])
-        #     STR.update_step(point, step_size, mu)
+            self.S += self.lam
 
-        # ob_T1 += lam
-        # for s in range(rho):
-            # # OB
-            # j = random.randrange(ob_T0, ob_T1)
-            # point = (j, X[j], Y[j])
-            # OB.update_step(point, step_size, mu)
-            
-        for s in range(rho):
-            # (slightly more correct) OB
-            if s % 2 == 0 and ob_T0 < S:
-                ob_T1 += 1
-            j = random.randrange(ob_T0, ob_T1)
-            point = (j, X[j], Y[j])
-            OB.update_step(point, step_size, mu)
-        
-        # DD Drift Detection
-        for s in range(rho):
-            if s % 2 == 0 and dd_T1 < S:
-                j = dd_T1
-                dd_T1 += 1
-            else:
-                j = random.randrange(dd_T0, dd_T1)
-            point = (j, X[j], Y[j])
-            DD.update_step(point, step_size, mu)
-            
-        # AUE ensemble method
-        for T0, expert in AUE.experts.items():
-            for s in range(rho):
-            # for s in range(int(2*rho*AUE.weights[T0])):
-                if s % 2 == 0 and AUE.T1[T0] < S:
-                    j = AUE.T1[T0]
-                    AUE.T1[T0] += 1
-                else:
-                    j = random.randrange(T0, AUE.T1[T0])
-                point = (j, X[j], Y[j])
-                expert.update_step(point, step_size, mu)
+        return self.loss
 
-    return loss
 
-def plot(output, rate, b_in, dataset_name):
-
-    current_time = time.strftime('%Y-%m-%d_%H%M%S')
-    path_png = os.path.join('output', current_time, 'png')
-    path_eps = os.path.join('output', current_time, 'eps')
-
-    os.makedirs(path_png)
-    os.makedirs(path_eps)
+def plot(output:dict, dataset_name, b, path, rate):
 
     mpl.rcParams['lines.linewidth'] = 1.0
     mpl.rcParams['lines.markersize'] = 4
 
-    b = min(b_in, 100)
-    print(b)
-    for i in range(max(math.ceil(b_in/100), 1)):
-        # output = output_in[100 * i : 100 (i + 1)]
-        # t = factor
-        t = 1
-        xx = range(0, b)
-        tt1 = range(int(0.5 * b), int(0.5 * b) + 20)
-        tt2 = range(int(0.5 * b) * 2, int(0.5 * b) * 2 + 20)
-        xxx = range(0, b, 10)
-        xxxx = range(0, b, int(b*0.5))
+    b = min(b, 100) # if b > 100, plot results of 100 time steps per plot
 
-        first = i*b
-        last = min(b * (i+1), b_in)
+    for i in range(max(math.ceil(b / 100), 1)):
+
+        t = 1
+        first = max(1, i * b)
+        last = min(b * (i + 1), b)
 
         xx = range(first, last, t)
-
-        if i == 0:
-            xx = range(1,b, t)
-            first = 1
-
 
         # ------------ accuracy  --------------
         plt.figure(1)
         plt.clf()
-        plt.plot(xx, output['Aware']['zero-one'][first:last], 'black', label='Aware')
-        # plt.plot(xx, output['AwareCarry']['zero-one'][first:last], 'y-', label='AwareCarry')
-        # plt.plot(xx, output['STR']['zero-one'][first:last], 'lime', label='STR')
-        # plt.plot(xx, output['sgdOnline']['zero-one'][first:last], 'peru', label='sgdOnline')
-        plt.plot(xx, output['SR']['zero-one'][first:last:t], 'blue', label='SR', marker='o', linestyle='dashed',markevery=10)
-        # plt.plot(xx, output['OB']['zero-one'][first:last], 'red', label='OB')
-        plt.plot(xx, output['DD']['zero-one'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed', markevery=10)
-        plt.plot(xx, output['AUE']['zero-one'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
-        # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
-        # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
+        colors = ['black', 'green', 'red', 'blue']
+        markers = ['^', 's', 'o', 'x']
+        k = 0
+        for key in output.keys():
+            plt.plot(xx, output[key][first:last], colors[k], label=key, marker = markers[k], linestyle='dashed',
+                 markevery=10)
+            k += 1
         plt.xlabel('Time')
         plt.ylabel('Misclassification rate')
         plt.legend()
         plt.xlim(first, last)
-        # plt.ylim(0.1, 0.4)
-        plt.savefig(os.path.join(path_eps, '{0}r{1}-acc{2}1.eps'.format(dataset_name, rate, i)), format='eps')
-        plt.savefig(os.path.join(path_png, '{0}r{1}-acc{2}1.png'.format(dataset_name, rate, i)), format='png', dpi=200)
+        plt.savefig(os.path.join(path, '{0}r{1}-acc{2}.eps'.format(dataset_name, rate, i)), format='eps')
+        plt.savefig(os.path.join(path, '{0}r{1}-acc{2}.png'.format(dataset_name, rate, i)), format='png', dpi=200)
 
 
-        # ------------ reg-loss  --------------
-        plt.figure(2)
-        plt.clf()
-        plt.plot(xx, output['Aware']['reg'][first:last], 'black', label='Aware')
-        # plt.plot(xx, output['AwareCarry']['reg'][first:last], 'y-', label='AwareCarry')
-        # plt.plot(xx, output['STR']['reg'][first:last], 'lime', label='STR')
-        # plt.plot(xx, output['sgdOnline']['reg'][first:last], 'peru', label='sgdOnline')
-        plt.plot(xx, output['SR']['reg'][first:last:t], 'blue', label='SR',  marker='o', linestyle='dashed',markevery=10)
-        # plt.plot(xx, output['OB']['reg'][first:last], 'red', label='OB')
-        plt.plot(xx, output['DD']['reg'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed',markevery=10)
-        # plt.plot(xx, output['AUE']['reg'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
-        # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
-        # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
-        plt.xlabel('Time')
-        plt.ylabel('regression loss')
-        plt.legend()
-        plt.xlim(first, last)
-        # plt.ylim(0, 0.9)
-        plt.savefig(os.path.join(path_eps, '{0}r{1}-reg{2}1.eps'.format(dataset_name, rate, i)), format='eps')
-        plt.savefig(os.path.join(path_png, '{0}r{1}-reg{2}1.png'.format(dataset_name, rate, i)), format='png', dpi=200)
-
-        # ------------ accuracy w/carry --------------
-        plt.figure(3)
-        plt.clf()
-        # plt.plot(xx, output['Aware']['zero-one'][first:last], 'g-', label='Aware')
-        plt.plot(xx, output['AwareCarry']['zero-one'][first:last], 'black', label='AwareCarry')
-        # plt.plot(xx, output['STR']['zero-one'][first:last], 'lime', label='STR')
-        # plt.plot(xx, output['sgdOnline']['zero-one'][first:last], 'peru', label='sgdOnline')
-        plt.plot(xx, output['SR']['zero-one'][first:last:t], 'blue', label='SR', marker='o', linestyle='dashed',markevery=10)
-        # plt.plot(xx, output['OB']['zero-one'][first:last], 'red', label='OB')
-        plt.plot(xx, output['DD']['zero-one'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed', markevery=10)
-        plt.plot(xx, output['AUE']['zero-one'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
-        # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
-        # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
-        plt.xlabel('Time')
-        plt.ylabel('Misclassification rate')
-        plt.legend()
-        plt.xlim(first, last)
-        # plt.ylim(0.1, 0.4)
-        plt.savefig(os.path.join(path_eps, '{0}r{1}-acc{2}2.eps'.format(dataset_name, rate, i)), format='eps')
-        plt.savefig(os.path.join(path_png, '{0}r{1}-acc{2}2.png'.format(dataset_name, rate, i)), format='png', dpi=200)
-
-
-        # ------------ reg-loss w/carry --------------
-        plt.figure(4)
-        plt.clf()
-        # plt.plot(xx, output['Aware']['reg'][first:last], 'g-', label='Aware')
-        plt.plot(xx, output['AwareCarry']['reg'][first:last], 'black', label='AwareCarry')
-        # plt.plot(xx, output['STR']['reg'][first:last], 'lime', label='STR')
-        # plt.plot(xx, output['sgdOnline']['reg'][first:last], 'peru', label='sgdOnline')
-        plt.plot(xx, output['SR']['reg'][first:last:t], 'blue', label='SR',  marker='o', linestyle='dashed',markevery=10)
-        # plt.plot(xx, output['OB']['reg'][first:last], 'red', label='OB')
-        plt.plot(xx, output['DD']['reg'][first:last:t], 'green', label='MDDM',  marker='^', linestyle='dashed',markevery=10)
-        # plt.plot(xx, output['AUE']['reg'][first:last:t], 'red', label='AUE',  marker='s', linestyle='dashed',markevery=10)
-        # for x in xxx: plt.axvline(x=x, color='0.4', linestyle=':', linewidth=1)
-        # for x in xxxx: plt.axvline(x=x, color='0.2', linestyle='--', linewidth=1)
-        plt.xlabel('Time')
-        plt.ylabel('regression loss')
-        plt.legend()
-        plt.xlim(first, last)
-        # plt.ylim(0, 0.9)
-        plt.savefig(os.path.join(path_eps, '{0}r{1}-reg{2}2.eps'.format(dataset_name, rate, i)), format='eps')
-        plt.savefig(os.path.join(path_png, '{0}r{1}-reg{2}2.png'.format(dataset_name, rate, i)), format='png', dpi=200)
-
-
-
-def median_outputs(output_list, b):
-    output = {
-        'Aware': {'zero-one': [0] * b, 'reg': [0] * b},
-        'AwareCarry': {'zero-one': [0] * b, 'reg': [0] * b},
-        # 'STR': {'zero-one': [0] * b, 'reg': [0] * b},
-        'SR': {'zero-one': [0] * b, 'reg': [0] * b},
-        'sgdOnline': {'zero-one': [0] * b, 'reg': [0] * b},
-        'OB' : {'zero-one': [0] * b, 'reg': [0] * b},
-        'DD' : {'zero-one': [0] * b, 'reg': [0] * b},
-        'AUE' : {'zero-one': [0] * b, 'reg': [0] * b}
-    }
+def median_outputs(output_list):
+    output = {}
+    if len(output_list) == 0:
+        print('Error: no result')
+    else:
+        for key in output_list[0].keys():
+            b = len(output_list[0][key])
+            output[key] = [0] * b
 
     for t in range(b):
-        output['Aware']['zero-one'][t] = numpy.median([o['Aware']['zero-one'][t] for o in output_list])
-        output['AwareCarry']['zero-one'][t] = numpy.median([o['AwareCarry']['zero-one'][t] for o in output_list])
-        # output['STR']['zero-one'][t] = numpy.median([o['STR']['zero-one'][t] for o in output_list])
-        output['SR']['zero-one'][t] = numpy.median([o['SR']['zero-one'][t] for o in output_list])
-        output['sgdOnline']['zero-one'][t] = numpy.median([o['sgdOnline']['zero-one'][t] for o in output_list])
-        output['OB']['zero-one'][t] = numpy.median([o['OB']['zero-one'][t] for o in output_list])
-        output['DD']['zero-one'][t] = numpy.median([o['DD']['zero-one'][t] for o in output_list])
-        output['AUE']['zero-one'][t] = numpy.median([o['AUE']['zero-one'][t] for o in output_list])
+        for key in output.keys():
+            output[key][t] = numpy.median([o[key][t] for o in output_list])
 
-        output['Aware']['reg'][t] = numpy.median([o['Aware']['reg'][t] for o in output_list])
-        output['AwareCarry']['reg'][t] = numpy.median([o['AwareCarry']['reg'][t] for o in output_list])
-        # output['STR']['reg'][t] = numpy.median([o['STR']['reg'][t] for o in output_list])
-        output['SR']['reg'][t] = numpy.median([o['SR']['reg'][t] for o in output_list])
-        output['sgdOnline']['reg'][t] = numpy.median([o['sgdOnline']['reg'][t] for o in output_list])
-        output['OB']['reg'][t] = numpy.median([o['OB']['reg'][t] for o in output_list])
-        output['DD']['reg'][t] = numpy.median([o['DD']['reg'][t] for o in output_list])
-        output['AUE']['reg'][t] = numpy.median([o['AUE']['reg'][t] for o in output_list])
- # "output_list
-    return output
+    return output, b
+
+def average_over_time(output_list):
+
+    if len(output_list) == 0:
+        print('Error: no output')
+    else:
+        for key in output_list[0].keys():
+            b = len(output_list[0][key])
+            ave = 0
+            for t in range(b):
+                ave += sum([o[key][t] for o in output_list])
+            ave /= (b * len(output_list))
+
+            logging.info('average over time {0} : {1}'.format(key, ave))
+
+def create_folder():
+    current_time = time.strftime('%Y-%m-%d_%H%M%S')
+
+    path = os.path.join('output', current_time)
+    os.makedirs(path)
+
+    return path
 
 if __name__ == "__main__":
 
+    dataset_name = 'rcv'
+    path = create_folder()
+    logging.basicConfig(filename=os.path.join(path,'{0}.log'.format(dataset_name)), filemode='w', level=logging.INFO)
 
-    dataset_name = 'sea'
-    prediction_threshold = THRESHOLD['default']
-    b = NUMBER_OF_BATCHES
-
-    rate = 2
-    step_size = STEP_SIZE[dataset_name]
-    mu = MU[dataset_name]
-
-    loss_fn = 'zero-one'
-    #loss_fn = 'reg'
-
-    logging.basicConfig(filename='{0}-{1}-b{2}.log'.format(dataset_name, loss_fn, b), filemode='w', level=logging.INFO)
-
-    # X, Y, n, d = data.Luxembourgcal()
-    # X, Y, n, d = data.powerSupply()
-    # X, Y, n, d = data.airline()
-    # X, Y, n, d = data.airline_trim(1900*581, 1600*581)
-    # X, Y, n, d = data.airline_trim(100*581)
-    # X, Y, n, d = data.elec()
-    # X, Y, n, d = data.sine1()
-    # X, Y, n, d = data.mixed()
-    # X, Y, n, d = data.circles()
-    # X, Y, n, d = data.sea()
-    # X, Y, n, d = data.airline_moa()
-    # X, Y, n, d = data.sine1_new()
-    # X, Y, n, d = data.circles_new()
-
-    X, Y, n, d = syn_data.sea_abrupt0()
-    # X, Y, n, d = syn_data.sea_abrupt10()
-    # X, Y, n, d = syn_data.sea_abrupt20()
-    #X, Y, n, d = syn_data.sea_abrupt30()
-    
-    # X, Y, n, d = syn_data.sea4()
-    # X, Y, n, d = syn_data.stagger_abrupt()
-    # X, Y, n, d = syn_data.hyperplane_slow()
-    # X, Y, n, d = syn_data.hyperplane_fast()
-
-
-
-    logging.info('Started')
-    logging.info('1 - dataset : {0}, n : {1}, b : {2}, T : {3}, delta : {4}'.format(dataset_name, n, b, T_reactive, Delta))
-
-    lam = n // b
-    # print(n, d, b, lam, X[0], Y[0])
-    # print(lam)
-    rho = int(lam * rate)
-    N = 1
+    N = 5
     outputs = []
     for i in range(N):
         print ({'Trial {0}'.format(i)})
         logging.info('Trial {0}'.format(i))
-        output = process(X, Y, n, d, step_size, mu, b, lam, rho, loss_fn, dataset_name)
+        expt = experiments(dataset_name, 4)
+        output = expt.process()
         outputs.append(output)
 
+    average_over_time(outputs)
 
-    with open('output/data/{0}r{1}T{2}-{3}-b{4}d{5}.pkl'.format(dataset_name, rate, T_reactive, loss_fn, b, Delta), 'wb') as f:
+    with open(os.path.join(path,'data.pkl'), 'wb') as f:
         pickle.dump(outputs, f)
 
-    with open('output/data/{0}r{1}T{2}-{3}-b{4}d{5}.pkl'.format(dataset_name, rate, T_reactive, loss_fn, b, Delta), 'rb') as f:
+    with open(os.path.join(path,'data.pkl'), 'rb') as f:
         outputs = pickle.load(f)
 
-    output = median_outputs(outputs, b)
+    output, b = median_outputs(outputs)
 
-    # plot_name = dataset_name + '-T' + str(T_reactive)
-    # plot(output, rate, b, plot_name)
-
-    # plot_name = dataset_name + '-T' + str(T_reactive)
-    # plot(output, rate, b, plot_name)
-    plot(output, rate, b, dataset_name)
+    plot(output, dataset_name, b, path, 2)
