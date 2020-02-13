@@ -44,11 +44,7 @@ class read_dataset:
                 i += 1
         assert len(X) == n
 
-        mu = 1e-3
-        step_size = 2e-1
-        b = 100
-
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
 
     def sea(self, noise_level=10):
 
@@ -74,11 +70,7 @@ class read_dataset:
                 i += 1
         assert len(X) == n
 
-        mu = 1e-2
-        step_size = 1e-3
-        b = 100
-
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
 
     def hyperplane(self, type='slow'):
 
@@ -111,6 +103,8 @@ class read_dataset:
         n = 29928
         d = 2 + 1
 
+        drift_times = [17, 47, 76]
+
         X = []
         Y = []
 
@@ -133,18 +127,16 @@ class read_dataset:
             X[i][1] = X[i][1]/max_0
             X[i][2] = X[i][2]/max_1
 
-        mu = 1e-3
-        step_size = 2e-2
-        drift_times = [17, 47, 76]
-        b = 100
 
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
 
     def elec(self):
         #   features: date, day, period, nswprice, nswdemand, vicprice, vicdemand, transfer
 
         n = 45312
         d = 13 + 1
+
+        drift_times = [20]
 
         X = []
         Y = []
@@ -164,22 +156,18 @@ class read_dataset:
 
         assert len(X) == n
 
-        mu = 1e-4
-        step_size = 1e-1
-        drift_times = [20]
-        b = 34
-
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
 
     def airline(self, num2=58100, num1=0):
-
-        X = []
-        Y = []
 
         # n = 5810462
         n = num2 - num1 # read a partial of this dataset
         d = 679
 
+        drift_times = [31, 67]
+
+        X = []
+        Y = []
         with open('data/real-world/airline_2008.data') as file:
             i = 0
             for line in file:
@@ -196,12 +184,7 @@ class read_dataset:
                 i += 1
         assert len(X) == n
 
-        mu = 1e-3
-        step_size = 2e-2
-        drift_times = [31, 67]
-        b = 100
-
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
 
     # semi-synthetic datasets :
     def rcv(self, drift_portion=0.3):
@@ -229,11 +212,7 @@ class read_dataset:
                 i += 1
         assert len(X) == n
 
-        mu = 1e-5
-        step_size = 5e-1
-        b = 100
-
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
 
     def covtype(self, drift_portion=0.3):
 
@@ -271,8 +250,4 @@ class read_dataset:
                 Rx[k] = x
         X = Rx[:]
 
-        mu = 1e-4
-        step_size = 5e-3
-        b = 100
-
-        return X, Y, n, d, mu, step_size, b, drift_times
+        return X, Y, n, d, drift_times
