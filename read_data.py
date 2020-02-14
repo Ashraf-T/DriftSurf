@@ -8,15 +8,15 @@ class read_dataset:
         if dataset_name.startswith('sea'):
             name = 'sea'
             noise_level = dataset_name[3:]
-            return getattr(self, name)(self,noise_level)
+            return getattr(self, name)(noise_level)
 
         elif dataset_name.startswith('hyperplane'):
             name = 'hyperplane'
             type = dataset_name[11:]
-            return getattr(self, name)(self,type)
+            return getattr(self, name)(type)
 
         else:
-            return getattr(self, dataset_name)(self)
+            return getattr(self, dataset_name)()
 
     # synthetic datasets :
     def sine1(self):
