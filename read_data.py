@@ -95,10 +95,10 @@ class read_dataset:
                 i += 1
         assert len(X) == 100000
 
-        return X, Y, n, d
+        return X, Y, n, d, []
 
     # real world datasets :
-    def powerSupply(self):
+    def powersupply(self):
 
         n = 29928
         d = 2 + 1

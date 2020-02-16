@@ -16,9 +16,8 @@ This script requires numpy to be installed within the python environment you are
 
 import numpy
 from scipy.special import expit
-from collections import defaultdict
-import operator
 import logging
+from operator import attrgetter
 
 
 class Opt:
@@ -208,22 +207,19 @@ class LogisticRegression_expert(Model):
         updates the effective sample set
     """
 
-    def __init__(self, init_param, opt, buffer_pointer=0):
+    def __init__(self, init_param, opt, buffer_pointer=0, weight=1):
         """
 
-        :param init_w: ndarray
-            parameter to initialize the model's parameter
-        :param opt: str
-            optimization problem solver, either SGD or SAGA
-        :param current_pointer:
-            the current pointer in the buffer which indicates the start of the effective sample set (default is 0)
-        :param weight: float
-            weight of the expert (default is 1)
-        :param perf: float
-            performance of the expert (default is 0.5)
+        :param init_param:
+                    parameter to initialize the model's parameter
+        :param opt:
+                    optimization problem solver, either SGD or SAGA
+        :param buffer_pointer:
+                    the current pointer in the buffer which indicates the start of the effective sample set (default is 0)
         """
 
         self.param = init_param
+        self.weight = weight
         self.opt = opt
 
         self.T_pointers = (buffer_pointer, buffer_pointer)
@@ -323,7 +319,7 @@ class LogisticRegression_expert(Model):
         """ L2-regularized logistic loss for the given data
 
         :param data: list of tuples : [(int, {int:float}, int)]
-            a list of data points
+            a list of data points [(index, features, label)]
         :param mu: float
             L2-regularization const
 
@@ -363,6 +359,11 @@ class LogisticRegression_expert(Model):
         self.T_pointers = (lst[0], lst[1])
 
     def update_perf(self, current_perf):
+        """
+
+        :param current_perf:
+        :return:
+        """
         (current, previous, best) = self.perf
         previous = current
         current = current_perf
@@ -371,12 +372,26 @@ class LogisticRegression_expert(Model):
         self.perf = (current, previous, best)
 
     def get_current_perf(self):
+        """
+
+        :return:
+        """
         (current, previous, best) = self.perf
         return current
 
     def get_best_perf(self):
+        """
+
+        :return:
+        """
         (current, previous, best) = self.perf
         return best
+
+    def get_weight(self):
+        return self.weight
+
+    def update_weight(self, weight):
+        self.weight = weight
 
 class LogisticRegression_DSURF:
     """
@@ -393,20 +408,16 @@ class LogisticRegression_DSURF:
 
     REG = 'reg'
     ACC = 'zero-one'
+    DEFAULT_WEIGHT = 0.5
 
     def __init__(self, d, opt, delta, loss_fn):
         """
-        :param init_param:
+
+        :param d:
         :param opt:
-        :param current_time:
-        :param current_pointer
+        :param delta:
+        :param loss_fn:
         """
-
-        # self.init_w = numpy.random.rand(d)
-        # self.opt = opt
-
-
-        # self.init_param = numpy.random.rand(d)
         self.d = d
         self.opt = opt
         self.stable = True
@@ -431,7 +442,7 @@ class LogisticRegression_DSURF:
         """
 
         :param data:
-        :param predict_threshold:
+        :param mu:
         :return:
         """
 
@@ -495,6 +506,10 @@ class LogisticRegression_DSURF:
 
 
     def enter_reactive_condition1(self):
+        """
+
+        :return:
+        """
 
         condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_best_perf() + self.delta
         if condition1:
@@ -504,6 +519,10 @@ class LogisticRegression_DSURF:
 
 
     def enter_reactive_condition2(self):
+        """
+
+        :return:
+        """
 
         condition2 = (self.expert_stable) and self.expert_predictive.get_current_perf() > self.expert_stable.get_current_perf() + self.delta/2
         if condition2:
@@ -523,7 +542,8 @@ class LogisticRegression_DSURF:
 
         if self.stable and (self.enter_reactive_condition1() or self.enter_reactive_condition2()):
             self.stable = False
-            self.expert_reactive = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer)
+            self.expert_reactive = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DSURF.DEFAULT_WEIGHT)
+            self.expert_predictive.update_weight(0.5)
             current_perf = self.expert_reactive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_reactive.zero_one_loss(data)
             self.expert_reactive.update_perf(current_perf)
 
@@ -535,6 +555,11 @@ class LogisticRegression_DSURF:
 
 
     def switch_after_reactive(self, mu):
+        """
+
+        :param mu:
+        :return:
+        """
 
         perf_frozen = self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
         perf_reactive = self.expert_reactive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DSURF.REG else self.expert_reactive.zero_one_loss(self.sample_reactive)
@@ -547,7 +572,8 @@ class LogisticRegression_DSURF:
     def exit_reactive(self, buffer_pointer, mu):
         """
 
-        :param predict_threshold:
+        :param buffer_pointer:
+        :param mu:
         :return:
         """
 
@@ -556,7 +582,7 @@ class LogisticRegression_DSURF:
         if self.switch_after_reactive(mu):
             self.expert_predictive.__dict__ = self.expert_reactive.__dict__.copy()
 
-            self.expert_stable = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer)
+            self.expert_stable = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DSURF.DEFAULT_WEIGHT)
             self.sample_reactive = []
 
             logging.info('exit reactive state with new')
@@ -582,7 +608,7 @@ class LogisticRegression_AUE:
         self.d = d
         self.opt = opt
         self.experts = {}
-        self.weights = {}
+        # self.weights = {}
         # self.T1 = {}
     
     def predict(self, x, predict_threshold=0.5):
@@ -590,7 +616,7 @@ class LogisticRegression_AUE:
         wn = 0
 
         for index in self.experts.keys():
-            expert, weight = self.experts[index], self.weights[index]
+            expert, weight = self.experts[index], self.experts[index].get_weight()
 
             if (expert.predict(x, predict_threshold) == 1):
                 wp += weight
@@ -618,20 +644,27 @@ class LogisticRegression_AUE:
                 else:
                     mse += pr**2
             mse = mse/len(test_set)
-            self.weights[index] = 1./(mser + mse + LogisticRegression_AUE.EPS)
+            self.experts[index].update_weight(1./(mser + mse + LogisticRegression_AUE.EPS))
+            # self.weights[index] = 1./(mser + mse + LogisticRegression_AUE.EPS)
             
-        if len(self.experts) == LogisticRegression_AUE.K:
-            index = min(self.weights, key=self.weights.get)
+        if len(self.experts) == LogisticRegression_AUE.K:#TODO: correct this part
+            # index = min(self.weights, key=self.weights.get)
+            index = min(self.experts.keys(), key=lambda x: self.experts[x].get_weight())
             del self.experts[index]
-            del self.weights[index]
+            # del self.weights[index]
         
         T, _, _ = test_set[0]
         self.experts[T] = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, T)
-        self.weights[T] = 1./(mser + LogisticRegression_AUE.EPS)
+        self.experts[T].update_weight(1./(mser + LogisticRegression_AUE.EPS))
+        # self.weights[T] = 1./(mser + LogisticRegression_AUE.EPS)
         # self.T1[T] = T
         self.normalize_weights()
 
+
     def normalize_weights(self):
-        s = sum(w for w in self.weights.values())
-        for k in self.weights.keys():
-            self.weights[k] /= s
+        s = sum(self.experts[k].get_weight() for k in self.experts.keys())
+        for k in self.experts.keys():
+            self.experts[k].update_weight(self.experts[k].get_weight()/s)
+        # s = sum(w for w in self.weights.values())
+        # for k in self.weights.keys():
+        #     self.weights[k] /= s

@@ -20,11 +20,19 @@ class Experiments():
 
     OPT = models.Opt.SAGA
     OPT_sgd = models.Opt.SGD
+    LIMITED = 'limited'
 
-    def __init__(self, dataset:str, algo_names=['Aware','DD', 'AUE', 'DSURF']):
+    def __init__(self, dataset:str, computation='unlimited',algo_names=['Aware', 'SGD', 'OBL', 'MDDM', 'AUE', 'DSURF']):
+        """
+
+        :param dataset:
+        :param algo_names:
+        """
 
         self.algorithms = algo_names
         self.loss = {}
+        self.computation =  computation
+        self.rate = 4 if self.computation == Experiments.LIMITED else 2
 
         self.dataset_name = dataset
         readData = data.read_dataset()
@@ -37,13 +45,27 @@ class Experiments():
         self.step_size = STEP_SIZE[self.dataset_name]
         self.b = b[self.dataset_name] if self.dataset_name in b.keys() else b['default']
         self.lam = int(self.n//self.b)
+        self.rho = self.lam * self.rate
 
     def update_loss(self, test_set, time):
+        """
+
+        :param test_set:
+        :param time:
+        :return:
+        """
 
         for algo in self.algorithms:
             self.loss[algo][time] = getattr(self, algo).zero_one_loss(test_set)
 
     def setup_algorithms(self, delta, loss_fn, detector=MDDM_G()):
+        """
+
+        :param delta:
+        :param loss_fn:
+        :param detector:
+        :return:
+        """
 
         for algo in self.algorithms:
             if algo == 'DSURF': self.setup_DSURF(delta, loss_fn)
@@ -51,31 +73,64 @@ class Experiments():
             else: getattr(self, 'setup_{0}'.format(algo))()
 
     def setup_DSURF(self, delta, loss_fn):
+        """
+
+        :param delta:
+        :param loss_fn:
+        :return:
+        """
 
         self.DSURF_t = 0
         self.DSURF_r = r[dataset_name] if self.dataset_name in r.keys() else r['default']
         self.DSURF = models.LogisticRegression_DSURF(self.d, Experiments.OPT, delta, loss_fn)
 
-    def setup_DD(self, detector=MDDM_G()):
-        self.DD = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT)
-        self.DD_drift_detector = detector
+    def setup_MDDM(self, detector=MDDM_G()):
+        """
+
+        :param detector:
+        :return:
+        """
+        self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT)
+        self.MDDM_drift_detector = detector
 
     def setup_AUE(self):
+        """
+
+        :return:
+        """
         self.AUE = models.LogisticRegression_AUE(self.d, Experiments.OPT)
 
     def setup_Aware(self):
+        """
+
+        :return:
+        """
         self.Aware = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT, self.S)
 
     def setup_SGD(self):
+        """
+
+        :return:
+        """
         self.SGD = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT_sgd)
 
     def setup_OBL(self):
+        """
+
+        :return:
+        """
         self.OBL = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT)
 
     def update_STRSAGA_model(self, model):
+        """
+
+        :param model:
+        :return:
+        """
         if model:
+            weight = model.get_weight() if self.computation == Experiments.LIMITED else 1
             lst = list(model.T_pointers)
-            for s in range(self.rho):
+            for s in range(int(self.rho * weight)):
                 if s % 2 == 0 and lst[1] < self.S + self.lam:
                     j = lst[1]
                     lst[1] += 1
@@ -85,22 +140,41 @@ class Experiments():
                 model.update_step(point, self.step_size, self.mu)
             model.update_effective_set(lst[1])
 
-    def process_DD(self, time, new_batch):
+    def process_MDDM(self, time, new_batch):
+        """
 
-        if (self.DD_drift_detector.test(self.DD, new_batch) and time != 0):
-            self.DD = models.LogisticRegression_expert(numpy.random.rand(self.d), self.OPT, self.S)
-            self.DD_drift_detector.reset()
+        :param time:
+        :param new_batch:
+        :return:
+        """
+
+        if (self.MDDM_drift_detector.test(self.MDDM, new_batch) and time != 0):
+            self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), self.OPT, self.S)
+            self.MDDM_drift_detector.reset()
             logging.info('DD drift detected, reset model : {0}'.format(time))
 
-        self.update_STRSAGA_model(self.DD)
+        self.update_STRSAGA_model(self.MDDM)
 
     def process_AUE(self, time, new_batch):
+        """
+
+        :param time:
+        :param new_batch:
+        :return:
+        """
         self.AUE.update_weights(new_batch)
-        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.weights.keys()]))
+        # logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.weights.keys()]))
+        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.experts.keys()]))
         for index, expert in self.AUE.experts.items():
             self.update_STRSAGA_model(expert)
 
     def process_DSURF(self, time, new_batch):
+        """
+
+        :param time:
+        :param new_batch:
+        :return:
+        """
         self.DSURF.update_perf_all(new_batch, self.mu)
 
         if self.DSURF.stable:
@@ -124,9 +198,17 @@ class Experiments():
                 self.DSURF.exit_reactive(self.S+self.lam, self.mu)
 
     def process_Aware(self):
+        """
+
+        :return:
+        """
         self.update_STRSAGA_model(self.Aware)
 
-    def process_OBL(self):
+    def process_OBL(self, total = 4):
+        """
+
+        :return:
+        """
         lst = list(self.OBL.T_pointers)
         for s in range(self.rho):
             if s % 2 == 0 and lst[1] < self.S + self.lam:
@@ -137,6 +219,10 @@ class Experiments():
         self.OBL.update_effective_set(lst[1])
 
     def process_SGD(self):
+        """
+
+        :return:
+        """
         sgdOnline_T = self.S
         for s in range(min(self.lam, self.rho)):
             if sgdOnline_T < self.S + self.lam:
@@ -145,10 +231,17 @@ class Experiments():
             point = (j, self.X[j], self.Y[j])
             self.SGD.update_step(point, self.step_size, self.mu)
 
-    def process(self, rate=2, delta=0.2, loss_fn='zero-one'):
+    def process(self, delta=0.2, loss_fn='zero-one'):
+        """
+
+        :param rate:
+        :param delta:
+        :param loss_fn:
+        :return:
+        """
 
         self.S = 0
-        self.rho = int(self.lam * rate)
+        # self.rho = int(self.lam * rate)
         self.setup_algorithms(delta, loss_fn)
 
         for algo in self.algorithms:
@@ -173,18 +266,6 @@ class Experiments():
                 else: getattr(self, 'process_{0}'.format(algo))(time, test_set)
 
 
-            # # AUE
-            # self.process_AUE(time, test_set)
-            #
-            # # DD
-            # self.process_DD(time, test_set)
-            #
-            # # DSURF
-            # self.process_DSURF(time, test_set)
-            #
-            # # Aware
-            # self.update_model(self.Aware)
-
             self.S += self.lam
 
         return self.loss
@@ -193,28 +274,57 @@ class Experiments():
 class Results:
 
     def __init__(self, dataset_name):
+        """
+
+        :param dataset_name:
+        """
         self.dataset_name = dataset_name
         self.path = self.create_folder()
         logging.basicConfig(filename=os.path.join(self.path,'{0}.log'.format(dataset_name)), filemode='w', level=logging.INFO)
 
-    def gather(self, output_list, rate):
+    def gather(self, output_list, computation):
+        """
+
+        :param output_list:
+        :param rate:
+        :return:
+        """
 
         self.store_results(output_list)
 
         self.average_over_time(output_list)
         output, b = self.median_outputs(output_list)
-        self.plot(output, self.dataset_name, b, self.path, rate)
+        self.plot(output, self.dataset_name, b, self.path, computation)
+        logging.shutdown()
 
     def store_results(self, output_list):
+        """
+
+        :param output_list:
+        :return:
+        """
         with open(os.path.join(self.path, 'data.pkl'), 'wb') as f:
             pickle.dump(output_list, f)
 
     def load_results(self):
+        """
+
+        :return:
+        """
         with open(os.path.join(self.path, 'data.pkl'), 'rb') as f:
             outputs = pickle.load(f)
         return outputs
 
-    def plot(self, output:dict, dataset_name, b, path, rate):
+    def plot(self, output:dict, dataset_name, b, path, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DSURF']):
+        """
+
+        :param output:
+        :param dataset_name:
+        :param b:
+        :param path:
+        :param rate:
+        :return:
+        """
 
         mpl.rcParams['lines.linewidth'] = 1.0
         mpl.rcParams['lines.markersize'] = 4
@@ -235,18 +345,24 @@ class Results:
             colors = ['black', 'green', 'red', 'blue', 'brown', 'magenta']
             markers = ['^', 's', 'o', 'x', '.', '+']
             k = 0
-            for key in output.keys():
-                plt.plot(xx, output[key][first:last], colors[k], label=key, marker = markers[k], linestyle='dashed',
+            for key in algorithms:
+                linestyle = '-' if key == 'Aware' else '--'
+                plt.plot(xx, output[key][first:last], colors[k], label=key, marker = markers[k], linestyle=linestyle,
                      markevery=10)
                 k += 1
             plt.xlabel('Time')
             plt.ylabel('Misclassification rate')
             plt.legend()
             plt.xlim(first, last)
-            plt.savefig(os.path.join(path, '{0}r{1}-acc{2}.eps'.format(dataset_name, rate, i)), format='eps')
-            plt.savefig(os.path.join(path, '{0}r{1}-acc{2}.png'.format(dataset_name, rate, i)), format='png', dpi=200)
+            plt.savefig(os.path.join(path, '{0}-{1}-acc{2}.eps'.format(dataset_name, computation, i)), format='eps')
+            plt.savefig(os.path.join(path, '{0}-{1}-acc{2}.png'.format(dataset_name, computation, i)), format='png', dpi=200)
 
     def median_outputs(self, output_list):
+        """
+
+        :param output_list:
+        :return:
+        """
         output = {}
         if len(output_list) == 0:
             print('Error: no result')
@@ -262,22 +378,32 @@ class Results:
         return output, b
 
     def average_over_time(self, output_list):
+        """
+
+        :param output_list:
+        :return:
+        """
+        output = {}
 
         if len(output_list) == 0:
-            print('Error: no output')
+            print('Error: no result')
         else:
             for key in output_list[0].keys():
                 b = len(output_list[0][key])
-                ave = 0
+                output[key] = [0] * b
+
                 for t in range(b):
-                    ave += sum([o[key][t] for o in output_list])
-                ave /= (b * len(output_list))
+                    output[key][t] = numpy.mean([o[key][t] for o in output_list])
+                print('average over time {0} : {1}'.format(key, numpy.mean(output[key])))
+                print('variance over time {0} : {1}'.format(key, numpy.var(output[key])))
+                logging.info('average over time {0} : {1}'.format(key, numpy.mean(output[key])))
+                logging.info('variance over time {0} : {1}'.format(key, numpy.var(output[key])))
 
-                print('average over time {0} : {1}'.format(key, ave))
-                logging.info('average over time {0} : {1}'.format(key, ave))
+    def create_folder(self):
+        """
 
-    @staticmethod
-    def create_folder():
+        :return:
+        """
         current_time = time.strftime('%Y-%m-%d_%H%M%S')
 
         path = os.path.join('output', current_time)
@@ -287,9 +413,9 @@ class Results:
 
 if __name__ == "__main__":
 
-    dataset_name = 'sea0'
-    rate = 2
-    expt = Experiments(dataset_name)
+    dataset_name = 'rcv'
+    computation = 'unlimited'
+    expt = Experiments(dataset_name, computation)
     results = Results(dataset_name)
 
     N = 5
@@ -297,7 +423,7 @@ if __name__ == "__main__":
     for i in range(N):
         print({'Trial {0}'.format(i)})
         logging.info('Trial {0}'.format(i))
-        output = expt.process()
+        output = expt.process(delta=0.1, loss_fn='reg')
         outputs.append(output)
 
-    results.gather(outputs, rate)
+    results.gather(outputs,computation)
