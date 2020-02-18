@@ -16,7 +16,7 @@ STEP_SIZE = {'rcv': 5e-1, 'covtype': 5e-3, 'powersupply': 2e-2, 'airline': 2e-2,
 b = {'default': 100, 'elec':34}
 r = {'default': 4, 'elec': 1}
 
-class Experiments():
+class Training():
 
     OPT = models.Opt.SAGA
     OPT_sgd = models.Opt.SGD
@@ -32,7 +32,8 @@ class Experiments():
         self.algorithms = algo_names
         self.loss = {}
         self.computation =  computation
-        self.rate = 4 if self.computation == Experiments.LIMITED else 2
+        # self.rate = 4 if self.computation == Training.LIMITED else 2
+        self.rate = 2
 
         self.dataset_name = dataset
         readData = data.read_dataset()
@@ -69,7 +70,7 @@ class Experiments():
 
         for algo in self.algorithms:
             if algo == 'DSURF': self.setup_DSURF(delta, loss_fn)
-            elif algo == 'DD': self.setup_DD(detector)
+            elif algo == 'MDDM': self.setup_MDDM(detector)
             else: getattr(self, 'setup_{0}'.format(algo))()
 
     def setup_DSURF(self, delta, loss_fn):
@@ -82,7 +83,7 @@ class Experiments():
 
         self.DSURF_t = 0
         self.DSURF_r = r[dataset_name] if self.dataset_name in r.keys() else r['default']
-        self.DSURF = models.LogisticRegression_DSURF(self.d, Experiments.OPT, delta, loss_fn)
+        self.DSURF = models.LogisticRegression_DSURF(self.d, Training.OPT, delta, loss_fn)
 
     def setup_MDDM(self, detector=MDDM_G()):
         """
@@ -90,36 +91,37 @@ class Experiments():
         :param detector:
         :return:
         """
-        self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT)
+        self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.OPT)
         self.MDDM_drift_detector = detector
+        print('here', self.MDDM_drift_detector.__str__())
 
     def setup_AUE(self):
         """
 
         :return:
         """
-        self.AUE = models.LogisticRegression_AUE(self.d, Experiments.OPT)
+        self.AUE = models.LogisticRegression_AUE(self.d, Training.OPT)
 
     def setup_Aware(self):
         """
 
         :return:
         """
-        self.Aware = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT, self.S)
+        self.Aware = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.OPT, self.S)
 
     def setup_SGD(self):
         """
 
         :return:
         """
-        self.SGD = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT_sgd)
+        self.SGD = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.OPT_sgd)
 
     def setup_OBL(self):
         """
 
         :return:
         """
-        self.OBL = models.LogisticRegression_expert(numpy.random.rand(self.d), Experiments.OPT)
+        self.OBL = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.OPT)
 
     def update_STRSAGA_model(self, model):
         """
@@ -128,7 +130,7 @@ class Experiments():
         :return:
         """
         if model:
-            weight = model.get_weight() if self.computation == Experiments.LIMITED else 1
+            weight = model.get_weight() if self.computation == Training.LIMITED else 1
             lst = list(model.T_pointers)
             for s in range(int(self.rho * weight)):
                 if s % 2 == 0 and lst[1] < self.S + self.lam:
@@ -151,7 +153,7 @@ class Experiments():
         if (self.MDDM_drift_detector.test(self.MDDM, new_batch) and time != 0):
             self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), self.OPT, self.S)
             self.MDDM_drift_detector.reset()
-            logging.info('DD drift detected, reset model : {0}'.format(time))
+            logging.info('MDDM drift detected, reset model : {0}'.format(time))
 
         self.update_STRSAGA_model(self.MDDM)
 
@@ -231,7 +233,7 @@ class Experiments():
             point = (j, self.X[j], self.Y[j])
             self.SGD.update_step(point, self.step_size, self.mu)
 
-    def process(self, delta=0.2, loss_fn='zero-one'):
+    def process(self, delta=0.2, loss_fn='zero-one', drift_detectr=MDDM_G()):
         """
 
         :param rate:
@@ -242,7 +244,7 @@ class Experiments():
 
         self.S = 0
         # self.rho = int(self.lam * rate)
-        self.setup_algorithms(delta, loss_fn)
+        self.setup_algorithms(delta, loss_fn, drift_detectr)
 
         for algo in self.algorithms:
             self.loss[algo] = [0] * self.b
@@ -413,9 +415,11 @@ class Results:
 
 if __name__ == "__main__":
 
-    dataset_name = 'rcv'
+    dataset_name = 'hyperplane_slow'
     computation = 'unlimited'
-    expt = Experiments(dataset_name, computation)
+    drift_detector = MDDM_A()
+    
+    expt = Training(dataset_name, computation)
     results = Results(dataset_name)
 
     N = 5
@@ -423,7 +427,7 @@ if __name__ == "__main__":
     for i in range(N):
         print({'Trial {0}'.format(i)})
         logging.info('Trial {0}'.format(i))
-        output = expt.process(delta=0.1, loss_fn='reg')
+        output = expt.process(drift_detectr=drift_detector, delta=0.1, loss_fn='reg')
         outputs.append(output)
 
     results.gather(outputs,computation)
