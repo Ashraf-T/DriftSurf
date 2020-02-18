@@ -93,7 +93,6 @@ class Training():
         """
         self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.OPT)
         self.MDDM_drift_detector = detector
-        print('here', self.MDDM_drift_detector.__str__())
 
     def setup_AUE(self):
         """
@@ -415,10 +414,10 @@ class Results:
 
 if __name__ == "__main__":
 
-    dataset_name = 'hyperplane_slow'
+    dataset_name = 'hyperplane_fast'
     computation = 'unlimited'
     drift_detector = MDDM_A()
-    
+
     expt = Training(dataset_name, computation)
     results = Results(dataset_name)
 
