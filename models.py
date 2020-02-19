@@ -36,7 +36,7 @@ class Opt:
     """
 
     SGD = 'sgd'
-    SAGA = 'saga'
+    STRSAGA = 'strsaga'
 
 class Model:
     """
@@ -79,8 +79,8 @@ class Model:
         if self.opt == Opt.SGD:
             self.sgd_step(training_point, step_size, mu)
             return 1
-        elif self.opt == Opt.SAGA:
-            self.saga_step(training_point, step_size, mu)
+        elif self.opt == Opt.STRSAGA:
+            self.strsaga_step(training_point, step_size, mu)
             return 1
 
     def sgd_step(self, training_point, step_size, mu):
@@ -101,7 +101,7 @@ class Model:
 
         raise NotImplementedError()
 
-    def saga_step(self, training_point, step_size, mu):
+    def strsaga_step(self, training_point, step_size, mu):
         """updates the model using saga method in the single model setting
 
         :param training_point: tuple : (int, {int:float}, int)
@@ -259,7 +259,7 @@ class LogisticRegression_expert(Model):
         for (k, v) in x.items():
             self.param[k] -= step_size * (-1 * p * y * v)
 
-    def saga_step(self, training_point, step_size, mu):
+    def strsaga_step(self, training_point, step_size, mu):
         """ updates the model using saga method
 
         :param training_point: tuple : (int, {int:float}, int)
