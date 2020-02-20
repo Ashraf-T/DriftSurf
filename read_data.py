@@ -3,6 +3,9 @@ import math
 
 class read_dataset:
 
+    AVAILABLE_DATASETS = ['sine1', 'sea0', 'sea10', 'sea20', 'sea30', 'hyperplane_slow', 'hyperplane_fast',
+                          'powersupply', 'elec', 'airline', 'rcv', 'covtype']
+
     def read(self, dataset_name):
 
         if dataset_name.startswith('sea'):
