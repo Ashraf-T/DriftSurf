@@ -26,7 +26,7 @@ class Sensitivity_noise:
             train = training.Training(dataset_name, algo_names=self.algo_names)
             output = [train.process(delta,loss_fn,drift_detector)]
 
-            ave = results.Results.average_over_time(output)
+            ave = results.average_over_time(output)
             for algo in ave.keys():
                 self.ave_over_time[algo].append(ave[algo])
 

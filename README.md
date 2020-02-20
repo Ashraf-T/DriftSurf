@@ -8,3 +8,4 @@ Summary of files:
 - sensitivity_noise.py runs the experiment necessary to produce the results shown in Figure 4. 
 - greedy.py runs the experiment necessary to produce the results shown in Table 11 and Figure 11 in appendix. It takes one argument: name of dataset, it outputs time series plot and also prints out the average of misclassification rate over time for DriftSurf with greedy and without greedy approaches.
 - results.py contains the methods to produce plots and results of these experiments.
+- needs to be run using python 3
