@@ -48,8 +48,8 @@ if __name__ == "__main__":
         results.Results.plot_sensitivity_r(dataset_name, outputs, list_r, path)
         for r in list_r:
             ave[dataset_name].append(numpy.mean(outputs[r]))
-            print('average over time for r = {0} : {1}'.format(r, numpy.mean(outputs[r])))
-            logging.info('average over time for r = {0} : {1}'.format(r, numpy.mean(outputs[r])))
+            # print('average over time for r = {0} : {1}'.format(r, numpy.mean(outputs[r])))
+            # logging.info('average over time for r = {0} : {1}'.format(r, numpy.mean(outputs[r])))
 
     results.Results.store_results(ave, path)
     results.Results.plot_sensitivity_r_all(ave, list_r, path)

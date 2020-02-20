@@ -8,6 +8,7 @@ import numpy
 import time
 import hyperparameters
 import read_data as data
+import models
 
 class Results:
 
@@ -59,6 +60,38 @@ class Results:
         plt.xlim(1, b)
         plt.savefig(os.path.join(path, '{0}-r_sensitivity.eps'.format(dataset_name)), format='eps')
         plt.savefig(os.path.join(path, '{0}-r_sensitivity.png'.format(dataset_name)), format='png', dpi=200)
+
+    @staticmethod
+    def plot_greedy(dataset_name, output, path):
+
+        if len(output) == 0:
+            print('no output')
+            exit()
+
+        mpl.rcParams['lines.linewidth'] = 1.0
+        mpl.rcParams['lines.markersize'] = 4
+
+        b = hyperparameters.b[dataset_name] if dataset_name in hyperparameters.b.keys() else hyperparameters.b['default'] # if b > 100, plot results of 100 time steps per plot
+
+        t = 1
+        xx = range(1, b, t)
+
+        # ------------ accuracy  --------------
+        plt.figure(1)
+        plt.clf()
+        markers = ['o', 'x']
+        k = 0
+        for method in [models.LogisticRegression_DriftSurf.GREEDY, 'default']:
+            linestyle = '-' if method == models.LogisticRegression_DriftSurf.GREEDY else '--'
+            plt.plot(xx, output[method][1:b], 'k', label=method, marker=markers[k],
+                     linestyle=linestyle, markevery=10)
+            k += 1
+        plt.xlabel('Time')
+        plt.ylabel('Misclassification rate')
+        plt.legend()
+        plt.xlim(1, b)
+        plt.savefig(os.path.join(path, '{0}-greedy.eps'.format(dataset_name)), format='eps')
+        plt.savefig(os.path.join(path, '{0}-greedy.png'.format(dataset_name)), format='png', dpi=200)
 
     @staticmethod
     def plot_sensitivity_r_all(outputs, list_r, path):

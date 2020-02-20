@@ -106,7 +106,7 @@ class Training:
         for algo in self.algorithms:
             self.loss[algo][time] = getattr(self, algo).zero_one_loss(test_set)
 
-    def setup_algorithms(self, delta, loss_fn, detector=MDDM_G(), Aware_reset = 'B', r=None):
+    def setup_algorithms(self, delta, loss_fn, detector=MDDM_G(), Aware_reset = 'B', r=None, method='greedy'):
         """
             set parameters of algorithms in the begining of the training
         :param delta: float
@@ -122,12 +122,12 @@ class Training:
         """
 
         for algo in self.algorithms:
-            if algo == 'DriftSurf': self.setup_DriftSurf(delta, loss_fn, r)
+            if algo == 'DriftSurf': self.setup_DriftSurf(delta, loss_fn, r, method)
             elif algo == 'MDDM': self.setup_MDDM(detector)
             elif algo == 'Aware': self.setup_Aware(Aware_reset)
             else: getattr(self, 'setup_{0}'.format(algo))()
 
-    def setup_DriftSurf(self, delta, loss_fn, r=None):
+    def setup_DriftSurf(self, delta, loss_fn, r=None, method='greedy'):
         """
             setup parameters of DriftSurf
         :param delta: float
@@ -140,7 +140,7 @@ class Training:
 
         self.DriftSurf_t = 0
         self.DriftSurf_r = r if r else (hyperparameters.r[self.dataset_name] if self.dataset_name in hyperparameters.r.keys() else hyperparameters.r['default'])
-        self.DriftSurf = models.LogisticRegression_DriftSurf(self.d, self.opt, delta, loss_fn)
+        self.DriftSurf = models.LogisticRegression_DriftSurf(self.d, self.opt, delta, loss_fn, method)
 
     def setup_MDDM(self, detector=MDDM_G()):
         """
@@ -307,7 +307,7 @@ class Training:
     def process_SGD(self):
         self.update_sgd_SP_model(self.SGD)
 
-    def process(self, delta=0.2, loss_fn='zero-one', drift_detectr=MDDM_G(), Aware_reset='B', r=None):
+    def process(self, delta=0.2, loss_fn='zero-one', drift_detectr=MDDM_G(), Aware_reset='B', r=None, method='greedy'):
         """
             Train algorithms over the given dataset arrivin in streaming setting over b batches
         :param delta:
@@ -324,7 +324,7 @@ class Training:
 
         self.S = 0
         # self.rho = int(self.lam * rate)
-        self.setup_algorithms(delta, loss_fn, drift_detectr, Aware_reset, r)
+        self.setup_algorithms(delta, loss_fn, drift_detectr, Aware_reset, r, method)
 
         for algo in self.algorithms:
             self.loss[algo] = [0] * self.b

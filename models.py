@@ -353,8 +353,9 @@ class LogisticRegression_DriftSurf:
     REG = 'reg'
     ACC = 'zero-one'
     DEFAULT_WEIGHT = 0.5
+    GREEDY = 'greedy'
 
-    def __init__(self, d, opt, delta, loss_fn):
+    def __init__(self, d, opt, delta, loss_fn, method='greedy'):
         """
 
         :param d:
@@ -368,6 +369,7 @@ class LogisticRegression_DriftSurf:
         self.loss_fn = loss_fn
         self.delta = delta
         self.sample_reactive = []
+        self.method = method
 
         self.expert_predictive = LogisticRegression_expert(numpy.random.rand(d), self.opt)
         self.expert_stable = None
@@ -404,8 +406,7 @@ class LogisticRegression_DriftSurf:
 
         :return:
         """
-
-        if not self.stable and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
+        if not self.stable and self.method == self.GREEDY and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
             return self.expert_reactive
         else:
             return self.expert_predictive
