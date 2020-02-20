@@ -81,9 +81,10 @@ class Results:
         plt.clf()
         markers = ['o', 'x']
         k = 0
-        for method in [models.LogisticRegression_DriftSurf.GREEDY, 'default']:
+        for method in [models.LogisticRegression_DriftSurf.GREEDY, 'no-Greedy']:
             linestyle = '-' if method == models.LogisticRegression_DriftSurf.GREEDY else '--'
-            plt.plot(xx, output[method][1:b], 'k', label=method, marker=markers[k],
+            label = 'DriftSurf' if method == models.LogisticRegression_DriftSurf.GREEDY else 'DriftSurf(no-greedy)'
+            plt.plot(xx, output[method][1:b], 'k', label=label, marker=markers[k],
                      linestyle=linestyle, markevery=10)
             k += 1
         plt.xlabel('Time')
@@ -171,12 +172,15 @@ class Results:
             # ------------ accuracy  --------------
             plt.figure(1)
             plt.clf()
+
             colors = ['black', 'green', 'red', 'blue', 'brown', 'magenta']
             markers = ['^', 's', 'o', 'x', '.', '+']
             k = 0
             for key in algorithms:
                 linestyle = '-' if key == 'Aware' else '--'
-                plt.plot(xx, output[key][first:last], colors[k], label=key, marker=markers[k], linestyle=linestyle,
+                label = 'DriftSurf' if key == 'DSURF' else key
+                label = '1PASS-SGD' if key == 'SGD' else label
+                plt.plot(xx, output[key][first:last], colors[k], label=label, marker=markers[k], linestyle=linestyle,
                      markevery=10)
                 k += 1
             plt.xlabel('Time')
@@ -238,4 +242,3 @@ class Results:
         os.makedirs(path)
 
         return path
-
