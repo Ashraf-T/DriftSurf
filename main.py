@@ -14,7 +14,7 @@ if __name__ == "__main__":
     dataset_name = sys.argv[1]
     computation = sys.argv[2]
     rate = int(sys.argv[3])
-    opt = sys.argv[4]
+    opt = sys.argv[4].upper()
 
     results = results.Results(dataset_name)
 
