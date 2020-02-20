@@ -23,8 +23,9 @@ class Results:
 
         self.store_results(output_list, self.path)
 
-        self.average_over_time(output_list)
+        ave_over_time = self.average_over_time(output_list)
         output, b = self.median_outputs(output_list)
+        self.store_results(ave_over_time, self.path, 'ave_over_time')
         self.plot_training(output, self.dataset_name, b, self.path, computation)
         # logging.shutdown()
 
@@ -141,9 +142,9 @@ class Results:
         plt.savefig(os.path.join(self.path, '{0}-noise_sensitivity.png'.format(self.dataset_name)), format='png', dpi=200)
 
     @staticmethod
-    def store_results(output_list, path):
+    def store_results(output_list, path, name='data'):
 
-        with open(os.path.join(path, 'data.pkl'), 'wb') as f:
+        with open(os.path.join(path, '{0}.pkl'.format(name)), 'wb') as f:
             pickle.dump(output_list, f)
 
     @staticmethod
@@ -230,7 +231,6 @@ class Results:
                 # print('variance over time {0} : {1}'.format(key, var_over_time[key]))
                 # logging.info('average over time {0} : {1}'.format(key, ave_over_time[key]))
                 # logging.info('variance over time {0} : {1}'.format(key, var_over_time[key]))
-
         return ave_over_time
 
     @staticmethod

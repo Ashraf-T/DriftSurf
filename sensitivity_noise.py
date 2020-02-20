@@ -37,4 +37,5 @@ if __name__ == "__main__":
     results = results.Results('sea')
     sens_n = Sensitivity_noise()
     outputs = sens_n.process()
+    results.store_results(outputs, results.path, 'ave_over_time')
     results.plot_sensitivity_noise(outputs)
