@@ -7,14 +7,14 @@ import sys
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 5:
-        print("needs 4 arguments: dataset ({0}), computation (model, algorithm), rho/lambda, base_learner (STRSAGA, SGD)".format(', '.join(data.read_dataset.AVAILABLE_DATASETS)))
+    if len(sys.argv) < 4:
+        print("needs 3 arguments: dataset ({0}), computation (model, algorithm), rho/lambda".format(', '.join(data.read_dataset.AVAILABLE_DATASETS)))
         exit()
 
     dataset_name = sys.argv[1]
     computation = sys.argv[2]
     rate = int(sys.argv[3])
-    opt = sys.argv[4].upper()
+    opt = 'STRSAGA' #sys.argv[4].upper()
 
     results = results.Results(dataset_name)
 
