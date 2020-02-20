@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     expt = training.Training(dataset=dataset_name, computation=computation, rate=rate, base_learner=opt, algo_names=['Aware', 'MDDM', 'AUE', 'DriftSurf'])
 
-    N = 1
+    N = 5
     outputs = []
     for i in range(N):
         # print({'Trial {0}'.format(i)})

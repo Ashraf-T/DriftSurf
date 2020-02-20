@@ -171,7 +171,7 @@ class read_dataset:
 
         X = []
         Y = []
-        with open('data/real-world/airline_2008.data') as file:
+        with open('data/real-world/airline.data') as file:
             i = 0
             for line in file:
                 if  num1 <= i < num2:
