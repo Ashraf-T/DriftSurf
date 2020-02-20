@@ -23,7 +23,12 @@ class read_dataset:
 
     # synthetic datasets :
     def sine1(self):
+        """ read synthetic dataset sine1 which is generated using Tornado framework
+            'Pesaranghader, A. and Viktor, H. L.  Fast hoeffding driftdetection method for evolving data streams.  InECMLPKDD, pp. 96–111, 2016'
 
+        :return:
+            features, labels, #records, #features, times that drift happen
+        """
         n = 10000
         d = 2 + 1
         drift_times = [20,40,60,80]
@@ -50,7 +55,14 @@ class read_dataset:
         return X, Y, n, d, drift_times
 
     def sea(self, noise_level=10):
+        """ read synthetic dataset sea which is generated using MOA framework
+            'Bifet, A., Holmes, G., Kirkby, R., and Pfahringer, B. Moa:Massive online analysis.JMLR, 11:1601–1604, 2010.'
 
+        :param noise_level:
+                level of noise added to the dataset
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
         n = 100000
         d = 3 + 1
         drift_times = [25, 50, 75]
@@ -76,7 +88,13 @@ class read_dataset:
         return X, Y, n, d, drift_times
 
     def hyperplane(self, type='slow'):
+        """ read synthetic dataset hyperplane which is generated using MOA framework
+            'Bifet, A., Holmes, G., Kirkby, R., and Pfahringer, B. Moa:Massive online analysis.JMLR, 11:1601–1604, 2010.'
 
+        :param type: (slow / fast)
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
         n = 100000
         d = 10 + 1
 
@@ -102,7 +120,12 @@ class read_dataset:
 
     # real world datasets :
     def powersupply(self):
+        """ read readl-world dataset powersupply
+            'Dau, H. A., Bagnall, A., Kamgar, K., Yeh, C.-C. M., Zhu,Y., Gharghabi, S., Ratanamahatana, C. A., and Keogh,E.  The ucr time series archive.IEEE/CAA Journal ofAutomatica Sinica, 6(6):1293–1305, 2019.'
 
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
         n = 29928
         d = 2 + 1
 
@@ -134,6 +157,13 @@ class read_dataset:
         return X, Y, n, d, drift_times
 
     def elec(self):
+        """ read real-world dataset electricity
+            'Harries, M., cse tr, U. N., and Wales, N. S.  Splice-2 com-parative evaluation: Electricity pricing. Technical report,1999'
+
+        :return:
+            features, labels, #records, #features, times that drift happen
+        """
+
         #   features: date, day, period, nswprice, nswdemand, vicprice, vicdemand, transfer
 
         n = 45312
@@ -162,10 +192,19 @@ class read_dataset:
         return X, Y, n, d, drift_times
 
     def airline(self, num2=58100, num1=0):
+        """ read real-world dataset airline
+        Note1. We preprocessed this dataset by normalization and one-hot encoding of categorical features)
+        Note2. The first 100 batch are used in this experimnets)
+        'Ikonomovska, E. Airline dataset.http://kt.ijs.si/elena_ikonomovska/data.html.  (Accessed on02/06/2020).'
 
+        :param num2:
+        :param num1:
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
         # n = 5810462
         n = num2 - num1 # read a partial of this dataset
-        d = 679
+        d = 679 #there are only 13 features in the original dataset. One-hot encoding will results in having dimension of 679
 
         drift_times = [31, 67]
 
@@ -191,7 +230,12 @@ class read_dataset:
 
     # semi-synthetic datasets :
     def rcv(self, drift_portion=0.3):
+        """ read dataset rcv and introduce two abrupt drifts to it
 
+        :param drift_portion:
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
         n = 20242
         d = 47237
         drift_times = [30, 60]
@@ -218,7 +262,12 @@ class read_dataset:
         return X, Y, n, d, drift_times
 
     def covtype(self, drift_portion=0.3):
+        """ read dataset covertype and introduce two abrupt drifts to it
 
+        :param drift_portion:
+        :return:
+            features, labels, #records, #features, times that drift happen
+        """
         n = 581012
         d = 54 + 1
         drift_times = [30, 60]
