@@ -178,6 +178,12 @@ class Training:
         """
         self.OBL = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.STRSAGA)
 
+    def setup_Candor(self):
+        """
+            setup Candor
+        """
+        self.Candor = models.LogisticRegression_Candor(self.d, self.opt)
+
     def update_strsaga_model(self, model):
         """
             update the given model based on strsaga algorithm presented in 'Jothimurugesan, E., Tahmasbi, A., Gibbons, P., and Tirtha-pura, S. Variance-reduced stochastic gradient descent onstreaming data. InNeurIPS, pp. 9906–9915, 2018.'
@@ -197,6 +203,20 @@ class Training:
                 model.update_step(point, self.step_size, self.mu)
             model.update_effective_set(lst[1])
 
+    def update_strsaga_model_biased(self, model, wp):
+        if model: # limited case????
+            weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            lst = list(model.T_pointers)
+            for s in range(int(self.rho * weight)):
+                if s % 2 == 0 and lst[1] < self.S + self.lam:
+                    j = lst[1]
+                    lst[1] += 1
+                else:
+                    j = random.randrange(lst[0], lst[1])
+                point = (j, self.X[j], self.Y[j])
+                model.strsaga_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
+            model.update_effective_set(lst[1])
+
     def update_sgd_model(self, model):
         """
             update the given model based on SGD algorithm
@@ -211,6 +231,16 @@ class Training:
                 j = random.randrange(lst[0], lst[1] + self.lam)
                 point = (j, self.X[j], self.Y[j])
                 model.update_step(point, self.step_size, self.mu)
+            model.update_effective_set(lst[1] + self.lam)
+
+    def update_sgd_model_biased(self, model, wp):
+        if model:
+            weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            lst = list(model.T_pointers)
+            for s in range(int(self.rho * weight)):
+                j = random.randrange(lst[0], lst[1] + self.lam)
+                point = (j, self.X[j], self.Y[j])
+                model.step_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
             model.update_effective_set(lst[1] + self.lam)
 
     # single-pass SGD
@@ -257,6 +287,24 @@ class Training:
         logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.experts.keys()]))
         for index, expert in self.AUE.experts.items():
             getattr(self, 'update_{0}_model'.format(self.opt))(expert)
+
+    def process_Candor(self, time, new_batch):
+        """
+            Candor's process at time t given a newly arrived batch of data points
+        :param time: int
+                time step
+        :param new_batch:
+                newly arrived batch of data points
+        """
+
+        wp = self.Candor.get_weighted_combination()
+        expert = models.LogisticRegression_expert(numpy.random.rand(self.d), self.opt, self.S)  # alt: first arg is wp
+        if time == 0:
+            getattr(self, 'update_{0}_model'.format(self.opt))(expert)
+        else:
+            getattr(self, 'update_{0}_model_biased'.format(self.opt))(expert, wp)
+        self.Candor.experts.append(expert)
+        self.Candor.reset_weights()
 
     def process_DriftSurf(self, time, new_batch):
         """

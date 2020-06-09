@@ -2,6 +2,7 @@ import numpy
 from scipy.special import expit
 import logging
 from statistics import mean
+import collections
 
 class Opt:
     """
@@ -202,6 +203,25 @@ class LogisticRegression_expert(Model):
         for (k, v) in x.items():
             self.param[k] -= step_size * (-1 * p * y * v)
 
+    def sgd_step_biased(self, training_point, step_size, mu, wp):
+        """ updates the model using sgd method
+
+        :param training_point: tuple : (int, {int:float}, int)
+            training data point in form of (i, x, y) where i is its index, x is a dictionary of the
+            features (key, value) pairs, and y is the label which can be either 1 or -1
+        :param step_size: float
+            step size used to update the model
+        :param mu: float
+            L2-regularization const
+        """
+
+        (i, x, y) = training_point
+        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+
+        self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
+        for (k, v) in x.items():
+            self.param[k] -= step_size * (-1 * p * y * v)
+
     def strsaga_step(self, training_point, step_size, mu):
         """ updates the model using strsaga method
 
@@ -221,6 +241,34 @@ class LogisticRegression_expert(Model):
         m = len(self.table) if len(self.table) != 0 else 1
 
         self.param[:] = (1 - step_size * mu) * self.param
+        for (k, v) in x.items():
+            self.param[k] -= step_size * (g - alpha) * v
+        self.param -= step_size * (1. / m) * self.table_sum
+
+        self.table[i] = g
+
+        for (k, v) in x.items():
+            self.table_sum[k] += (g - alpha) * v
+
+    def strsaga_step_biased(self, training_point, step_size, mu, wp):
+        """ updates the model using strsaga method
+
+        :param training_point: tuple : (int, {int:float}, int)
+            training data point in form of (i, x, y) where i is its index, x is a dictionary of the
+            features (key, value) pairs, and y is the label which can be either 1 or -1
+        :param step_size: float
+            step size used to update the model
+        :param mu: float
+            L2-regularization const
+        """
+
+        (i, x, y) = training_point
+        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+        g = -1 * p * y
+        alpha = self.table[i] if i in self.table else 0
+        m = len(self.table) if len(self.table) != 0 else 1
+
+        self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
         for (k, v) in x.items():
             self.param[k] -= step_size * (g - alpha) * v
         self.param -= step_size * (1. / m) * self.table_sum
@@ -352,6 +400,7 @@ class LogisticRegression_expert(Model):
         :param weight:
         """
         self.weight = weight
+
 
 class LogisticRegression_DriftSurf:
     """
@@ -635,3 +684,59 @@ class LogisticRegression_AUE:
         s = sum(self.experts[k].get_weight() for k in self.experts.keys())
         for k in self.experts.keys():
             self.experts[k].update_weight(self.experts[k].get_weight()/s)
+
+class LogisticRegression_Candor:
+    """
+        A class to define Candor Method presented in :
+        'P. Zhao, L.-W. Cai, and Z.-H. Zhou. Handling concept drift via model reuse. Machine Learning,
+        430 109:533–568, 2020.'
+
+    """
+    K = 25
+    MU = 400
+    ETA = 0.75
+
+    def __init__(self, d, opt):
+        self.init_w = numpy.random.rand(d)
+        self.d = d
+        self.opt = opt
+        self.experts = collections.deque(maxlen=LogisticRegression_Candor.K)
+
+    def predict(self, x, predict_threshold=0.5):
+        wp = 0
+        wn = 0
+
+        for e in self.experts:
+            if (e.predict(x, predict_threshold) == 1):
+                wp += e.get_weight()
+            else:
+                wn += e.get_weight()
+
+        return 1 if wp > wn else -1
+
+    def update_weights(self, training_point):
+        (i, x, y) = training_point
+
+        for e in self.experts:
+            e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+
+    def zero_one_loss(self, data, predict_threshold=0.5):
+        if len(data) == 0:
+            return 0
+        return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+
+    def get_weighted_combination(self):
+        self.normalize_weights()
+        w = numpy.zeros(self.d)
+        for e in self.experts:
+            w += e.param * e.get_weight()
+        return w
+
+    def normalize_weights(self):
+        s = sum(e.get_weight() for e in self.experts)
+        for e in self.experts:
+            e.update_weight(e.get_weight() / s)
+
+    def reset_weights(self):
+        for e in self.experts:
+            e.update_weight(1. / len(self.experts))
