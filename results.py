@@ -17,7 +17,7 @@ class Results:
         self.dataset_name = dataset_name
         self.b = hyperparameters.b[self.dataset_name] if self.dataset_name in hyperparameters.b.keys() else hyperparameters.b['default']
         self.path = self.create_folder()
-        # logging.basicConfig(filename=os.path.join(self.path, '{0}.log'.format(dataset_name)), filemode='w', level=logging.INFO)
+        logging.basicConfig(filename=os.path.join(self.path, '{0}.log'.format(dataset_name)), filemode='w', level=logging.INFO)
 
     def gather_training_results(self, output_list, computation):
 
@@ -27,7 +27,7 @@ class Results:
         output, b = self.median_outputs(output_list)
         self.store_results(ave_over_time, self.path, 'ave_over_time')
         self.plot_training(output, self.dataset_name, b, self.path, computation)
-        # logging.shutdown()
+        logging.shutdown()
 
     @staticmethod
     def plot_sensitivity_r(dataset_name, output, list_r, path):
@@ -175,6 +175,7 @@ class Results:
             plt.clf()
 
             colors = ['black', 'green', 'red', 'blue', 'brown', 'magenta']
+            # colors = ['black', 'brown', 'magenta', 'blue']
             markers = ['^', 's', 'o', 'x', '.', '+']
             k = 0
             for key in algorithms:
@@ -229,7 +230,7 @@ class Results:
                 # var_over_time[key] = numpy.var(output[key])
                 print('average over time {0} : {1}'.format(key, ave_over_time[key]))
                 # print('variance over time {0} : {1}'.format(key, var_over_time[key]))
-                # logging.info('average over time {0} : {1}'.format(key, ave_over_time[key]))
+                logging.info('average over time {0} : {1}'.format(key, ave_over_time[key]))
                 # logging.info('variance over time {0} : {1}'.format(key, var_over_time[key]))
         return ave_over_time
 

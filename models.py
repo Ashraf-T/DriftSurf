@@ -1,7 +1,7 @@
 import numpy
 from scipy.special import expit
 import logging
-
+from statistics import mean
 
 class Opt:
     """
@@ -146,7 +146,7 @@ class LogisticRegression_expert(Model):
         performance of the expert (current, previous, best)
     """
 
-    def __init__(self, init_param, opt, buffer_pointer=0, weight=1):
+    def __init__(self, init_param, opt, buffer_pointer=0, weight=1, r=4):
         """
 
         :param init_param:
@@ -168,7 +168,9 @@ class LogisticRegression_expert(Model):
         self.table = {}
         self.table_sum = numpy.zeros(self.param.shape)
 
-        self.perf = (None, None, None) # current, previous, best observed
+        self.perf = (None, None, None) # current, previous, best observed, avg over last r time steps
+        self.sliding_window = []
+        self.r = r
 
     def dot_product(self, x):
         """ computes the dot product of input x's features and the model parameter
@@ -311,6 +313,10 @@ class LogisticRegression_expert(Model):
             best = current
         self.perf = (current, previous, best)
 
+        self.sliding_window.append(current_perf)
+        if len(self.sliding_window) > self.r:
+            self.sliding_window.pop(0)
+
     def get_current_perf(self):
         """ returns the current performance of the model
 
@@ -328,6 +334,9 @@ class LogisticRegression_expert(Model):
         """
         (current, previous, best) = self.perf
         return best
+
+    def get_avg_sliding_window(self):
+        return mean(self.sliding_window)
 
     def get_weight(self):
         """ returns the weight of the model
@@ -355,7 +364,7 @@ class LogisticRegression_DriftSurf:
     DEFAULT_WEIGHT = 0.5
     GREEDY = 'greedy'
 
-    def __init__(self, d, opt, delta, loss_fn, method='greedy'):
+    def __init__(self, d, opt, delta, loss_fn, r, reactive_method='greedy', condition1='best_observed_perf', condition_switch='compare_trained'):
         """
 
         :param d:
@@ -369,9 +378,13 @@ class LogisticRegression_DriftSurf:
         self.loss_fn = loss_fn
         self.delta = delta
         self.sample_reactive = []
-        self.method = method
+        self.reactive_method = reactive_method
 
-        self.expert_predictive = LogisticRegression_expert(numpy.random.rand(d), self.opt)
+        self.conition1 = condition1
+        self.condition_switch = condition_switch
+
+        self.r = r
+        self.expert_predictive = LogisticRegression_expert(numpy.random.rand(d), self.opt, r=self.r)
         self.expert_stable = None
         self.expert_reactive = None
         self.expert_frozen = None
@@ -406,7 +419,7 @@ class LogisticRegression_DriftSurf:
 
         :return:
         """
-        if not self.stable and self.method == self.GREEDY and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
+        if not self.stable and self.reactive_method == self.GREEDY and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
             return self.expert_reactive
         else:
             return self.expert_predictive
@@ -458,9 +471,15 @@ class LogisticRegression_DriftSurf:
         :return: bool
         """
 
-        condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_best_perf() + self.delta
-        # if condition1:
-        #     logging.info('condition 1 holds')
+        # compare with the best observed performance so far
+        if self.conition1 == 'best_observed_perf':
+            condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_best_perf() + self.delta
+        # compare with the average of a sliding window
+        else:
+            condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_avg_sliding_window() + self.delta
+
+        if condition1:
+            logging.info('condition 1 holds')
 
         return condition1
 
@@ -471,8 +490,8 @@ class LogisticRegression_DriftSurf:
         """
 
         condition2 = (self.expert_stable) and self.expert_predictive.get_current_perf() > self.expert_stable.get_current_perf() + self.delta/2
-        # if condition2:
-        #     logging.info('condition 2 holds')
+        if condition2:
+            logging.info('condition 2 holds')
 
         return condition2
 
@@ -487,7 +506,7 @@ class LogisticRegression_DriftSurf:
 
         if self.stable and (self.enter_reactive_condition1() or self.enter_reactive_condition2()):
             self.stable = False
-            self.expert_reactive = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DriftSurf.DEFAULT_WEIGHT)
+            self.expert_reactive = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DriftSurf.DEFAULT_WEIGHT, self.r)
             self.expert_predictive.update_weight(0.5)
             current_perf = self.expert_reactive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_reactive.zero_one_loss(data)
             self.expert_reactive.update_perf(current_perf)
@@ -505,12 +524,27 @@ class LogisticRegression_DriftSurf:
         :return: bool
         """
 
-        perf_frozen = self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
+        # compare with the performance of the frozen model (snapshot of the predictive model before entering the reactive state)
+        if self.condition_switch == 'compare_frozen':
+            perf_to_compare = self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
+
+        # compare with the performance of the frozen model + delta (snapshot of the predictive model before entering the reactive state)
+        elif self.condition_switch == 'compare_frozen-delta_gap':
+            perf_to_compare = -1 * self.delta/2 + self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
+
+        # compare with the performance of the predictive model + delta (predictive model is kept training during the reactive state)
+        elif self.condition_switch == 'compare_trained-delta-gap':
+            perf_to_compare = -1 * self.delta/2 + self.expert_predictive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_predictive.zero_one_loss(self.sample_reactive)
+
+        # default case: compare with the performance of the predictive model (predictive model is kept training during the reactive state)
+        else:
+            perf_to_compare = self.expert_predictive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_predictive.zero_one_loss(self.sample_reactive)
+
         perf_reactive = self.expert_reactive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_reactive.zero_one_loss(self.sample_reactive)
 
-        # logging.info(('Performance of frozen : {0}, reactive : {1}').format(perf_frozen, perf_reactive))
+        logging.info(('Performance to compare with : {0}, reactive : {1}').format(perf_to_compare, perf_reactive))
 
-        return (perf_frozen > perf_reactive)
+        return (perf_to_compare > perf_reactive)
 
     def exit_reactive(self, buffer_pointer, mu):
         """ The process of exiting a reactive state
@@ -524,12 +558,12 @@ class LogisticRegression_DriftSurf:
         if self.switch_after_reactive(mu):
             self.expert_predictive.__dict__ = self.expert_reactive.__dict__.copy()
 
-            self.expert_stable = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DriftSurf.DEFAULT_WEIGHT)
+            self.expert_stable = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DriftSurf.DEFAULT_WEIGHT, self.r)
             self.sample_reactive = []
 
-        #     logging.info('exit reactive state with new')
-        # else:
-        #     logging.info('exit reactive state with old')
+            logging.info('exit reactive state with new')
+        else:
+            logging.info('exit reactive state with old')
 
     def update_reactive_sample_set(self, data):
         """ updates reactive sample set by adding the given data to it
@@ -545,6 +579,7 @@ class LogisticRegression_AUE:
 
     """
     K = 10
+    # K = 2
     EPS = 1e-20
     
     def __init__(self, d, opt):

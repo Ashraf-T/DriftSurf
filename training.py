@@ -106,7 +106,7 @@ class Training:
         for algo in self.algorithms:
             self.loss[algo][time] = getattr(self, algo).zero_one_loss(test_set)
 
-    def setup_algorithms(self, delta, loss_fn, detector=MDDM_G(), Aware_reset = 'B', r=None, method='greedy'):
+    def setup_algorithms(self, delta, loss_fn, detector=MDDM_G(), Aware_reset = 'B', r=None, reactive_method='greedy', condition1='best_observed_perf', condition_switch='compare_trained'):
         """
             set parameters of algorithms in the begining of the training
         :param delta: float
@@ -122,12 +122,12 @@ class Training:
         """
 
         for algo in self.algorithms:
-            if algo == 'DriftSurf': self.setup_DriftSurf(delta, loss_fn, r, method)
+            if algo == 'DriftSurf': self.setup_DriftSurf(delta, loss_fn, r, reactive_method, condition1, condition_switch)
             elif algo == 'MDDM': self.setup_MDDM(detector)
             elif algo == 'Aware': self.setup_Aware(Aware_reset)
             else: getattr(self, 'setup_{0}'.format(algo))()
 
-    def setup_DriftSurf(self, delta, loss_fn, r=None, method='greedy'):
+    def setup_DriftSurf(self, delta, loss_fn, r=None, reactive_method='greedy', condition1='best_observed_perf', condition_switch='compare_trained'):
         """
             setup parameters of DriftSurf
         :param delta: float
@@ -140,7 +140,7 @@ class Training:
 
         self.DriftSurf_t = 0
         self.DriftSurf_r = r if r else (hyperparameters.r[self.dataset_name] if self.dataset_name in hyperparameters.r.keys() else hyperparameters.r['default'])
-        self.DriftSurf = models.LogisticRegression_DriftSurf(self.d, self.opt, delta, loss_fn, method)
+        self.DriftSurf = models.LogisticRegression_DriftSurf(self.d, self.opt, delta, loss_fn, self.DriftSurf_r, reactive_method, condition1, condition_switch)
 
     def setup_MDDM(self, detector=MDDM_G()):
         """
@@ -241,7 +241,7 @@ class Training:
         if (self.MDDM_drift_detector.test(self.MDDM, new_batch) and time != 0):
             self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), self.opt, self.S)
             self.MDDM_drift_detector.reset()
-            # logging.info('MDDM drift detected, reset model : {0}'.format(time))
+            logging.info('MDDM drift detected, reset model : {0}'.format(time))
 
         getattr(self, 'update_{0}_model'.format(self.opt))(self.MDDM)
 
@@ -254,7 +254,7 @@ class Training:
                 newly arrived batch of data points
         """
         self.AUE.update_weights(new_batch)
-        # logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.experts.keys()]))
+        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.experts.keys()]))
         for index, expert in self.AUE.experts.items():
             getattr(self, 'update_{0}_model'.format(self.opt))(expert)
 
@@ -271,7 +271,7 @@ class Training:
         if self.DriftSurf.stable:
             if self.DriftSurf.enter_reactive(self.S, new_batch, self.mu):
                 self.DriftSurf_t = 0
-                # logging.info('DriftSurf enters reactive state : {0}'.format(time))
+                logging.info('DriftSurf enters reactive state : {0}'.format(time))
 
             else:
                 # update models
@@ -307,7 +307,7 @@ class Training:
     def process_SGD(self):
         self.update_sgd_SP_model(self.SGD)
 
-    def process(self, delta=0.2, loss_fn='zero-one', drift_detectr=MDDM_G(), Aware_reset='B', r=None, method='greedy'):
+    def process(self, delta=0.1, loss_fn='zero-one', drift_detectr=MDDM_G(), Aware_reset='B', r=None, reactive_method='greedy', condition1='best_observed_perf', condition_switch='compare_trained'):
         """
             Train algorithms over the given dataset arrivin in streaming setting over b batches
         :param delta:
@@ -324,17 +324,17 @@ class Training:
 
         self.S = 0
         # self.rho = int(self.lam * rate)
-        self.setup_algorithms(delta, loss_fn, drift_detectr, Aware_reset, r, method)
+        self.setup_algorithms(delta, loss_fn, drift_detectr, Aware_reset, r, reactive_method, condition1, condition_switch)
 
         for algo in self.algorithms:
             self.loss[algo] = [0] * self.b
 
-        # logging.info('dataset : {0}, n : {1}, b : {2}'.format(self.dataset_name, self.n, self.b))
+        logging.info('dataset : {0}, n : {1}, b : {2}'.format(self.dataset_name, self.n, self.b))
 
 
         for time in range(self.b):
 
-            # print(time)
+            print(time)
 
             if time in self.drift_times and 'Aware' in self.algorithms and self.Aware_reset == Training.BEFORE:
                 self.setup_Aware()
@@ -343,8 +343,8 @@ class Training:
             test_set = [(i, self.X[i], self.Y[i]) for i in range(self.S, self.S + self.lam)]
             self.update_loss(test_set, time)
 
-            if time in self.drift_times and 'Aware' in self.algorithms and self.Aware_reset == Training.AFTER:
-                self.setup_Aware()
+            # if time in self.drift_times and 'Aware' in self.algorithms and self.Aware_reset == Training.AFTER:
+            #     self.setup_Aware()
 
             for algo in self.algorithms:
                 if algo in ['SGD', 'OBL', 'Aware']: getattr(self, 'process_{0}'.format(algo))()

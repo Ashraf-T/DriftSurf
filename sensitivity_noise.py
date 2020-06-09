@@ -18,13 +18,13 @@ class Sensitivity_noise:
         for algo in self.algo_names:
             self.ave_over_time[algo] = []
 
-    def process(self, delta=0.1, loss_fn='zero_one', drift_detector=MDDM_G()):
+    def process(self, delta=0.1, loss_fn='zero_one', drift_detector=MDDM_G(), condition1='best_observed_perf', condition_switch='compare_trained'):
 
         for noise in self.noise_levels:
             dataset_name = 'sea{0}'.format(noise)
             print('Processing {0}'.format(dataset_name))
             train = training.Training(dataset_name, algo_names=self.algo_names)
-            output = [train.process(delta,loss_fn,drift_detector)]
+            output = [train.process(delta=delta,loss_fn=loss_fn,drift_detectr=drift_detector, condition1=condition1, condition_switch=condition_switch)]
 
             ave = results.average_over_time(output)
             for algo in ave.keys():

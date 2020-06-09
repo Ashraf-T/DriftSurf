@@ -16,12 +16,12 @@ class greedy:
         self.dataset_name = dataset
         self.loss = {}
 
-    def process(self, delta=0.1, loss_fn='reg'):
+    def process(self, delta=0.1, loss_fn='reg', condition1='best_observed_perf', condition_switch='compare_trained'):
 
         train = training.Training(self.dataset_name, algo_names=['DriftSurf'])
         outputs = {}
         for method in [models.LogisticRegression_DriftSurf.GREEDY, 'no-Greedy']:
-            outputs[method] = train.process(delta, loss_fn, method=method)['DriftSurf']
+            outputs[method] = train.process(delta=delta, loss_fn=loss_fn, reactive_method=method, condition1=condition1, condition_switch=condition_switch)['DriftSurf']
         return outputs
 
 if __name__ == "__main__":
