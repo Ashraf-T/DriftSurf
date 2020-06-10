@@ -207,6 +207,7 @@ class Training:
         if model: # limited case????
             weight = model.get_weight() if self.computation == Training.LIMITED else 1
             lst = list(model.T_pointers)
+            # for s in range(int(self.rho * weight * 5)):
             for s in range(int(self.rho * weight)):
                 if s % 2 == 0 and lst[1] < self.S + self.lam:
                     j = lst[1]
@@ -214,7 +215,8 @@ class Training:
                 else:
                     j = random.randrange(lst[0], lst[1])
                 point = (j, self.X[j], self.Y[j])
-                model.strsaga_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
+                model.strsaga_step_biased(point, self.step_size, self.mu, wp)
+                # model.strsaga_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
             model.update_effective_set(lst[1])
 
     def update_sgd_model(self, model):
@@ -296,15 +298,22 @@ class Training:
         :param new_batch:
                 newly arrived batch of data points
         """
+        # self.Candor.update_weights_batch(new_batch)
+        # for training_point in new_batch:
+        #     self.Candor.update_weights(training_point)
 
         wp = self.Candor.get_weighted_combination()
-        expert = models.LogisticRegression_expert(numpy.random.rand(self.d), self.opt, self.S)  # alt: first arg is wp
+
+        expert = models.LogisticRegression_expert(numpy.copy(wp), self.opt, self.S)  # alt: first arg is wp
+        # expert = models.LogisticRegression_expert(numpy.random.rand(self.d), self.opt, self.S)  # alt: first arg is wp
         if time == 0:
             getattr(self, 'update_{0}_model'.format(self.opt))(expert)
         else:
             getattr(self, 'update_{0}_model_biased'.format(self.opt))(expert, wp)
         self.Candor.experts.append(expert)
         self.Candor.reset_weights()
+        # for training_point in new_batch:
+        #     self.Candor.update_weights(training_point)
 
     def process_DriftSurf(self, time, new_batch):
         """
@@ -400,6 +409,5 @@ class Training:
 
 
             self.S += self.lam
-
         return self.loss
 

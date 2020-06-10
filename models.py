@@ -693,7 +693,8 @@ class LogisticRegression_Candor:
 
     """
     K = 25
-    MU = 400
+    # MU = 400
+    MU = 1e-3
     ETA = 0.75
 
     def __init__(self, d, opt):
@@ -702,16 +703,29 @@ class LogisticRegression_Candor:
         self.opt = opt
         self.experts = collections.deque(maxlen=LogisticRegression_Candor.K)
 
-    def predict(self, x, predict_threshold=0.5):
+    # def predict(self, x, predict_threshold=0.5):
+    #     wp = 0
+    #     wn = 0
+    #     for e in self.experts:
+    #         if (e.predict(x, predict_threshold) == 1):
+    #             wp += e.get_weight()
+    #         else:
+    #             wn += e.get_weight()
+    #
+    #         # e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+    #     return 1 if wp > wn else -1
+
+    def predict(self, training_point, predict_threshold=0.5):
         wp = 0
         wn = 0
-
+        (i, x, y) = training_point
         for e in self.experts:
             if (e.predict(x, predict_threshold) == 1):
                 wp += e.get_weight()
             else:
                 wn += e.get_weight()
 
+            e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
         return 1 if wp > wn else -1
 
     def update_weights(self, training_point):
@@ -719,11 +733,33 @@ class LogisticRegression_Candor:
 
         for e in self.experts:
             e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+    #
+    # def update_weights_batch(self, batch):
+    #     for training_point in batch:
+    #         (i, x, y) = training_point
+    #
+    #         for e in self.experts:
+    #             e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+
+    # def predict(self, x, predict_threshold=0.5):
+    #     if len(self.experts) == 0:
+    #         return 1
+    #
+    #     e = self.experts[-1]
+    #     return e.predict(x, predict_threshold)
+    #
+    # def get_weighted_combination(self):
+    #     self.normalize_weights()
+    #     w = numpy.zeros(self.d)
+    #     if len(self.experts) != 0:
+    #         w += self.experts[-1].param
+    #     return w
 
     def zero_one_loss(self, data, predict_threshold=0.5):
         if len(data) == 0:
             return 0
-        return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+        return sum(self.predict((i,x,y), predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+        # return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
 
     def get_weighted_combination(self):
         self.normalize_weights()
