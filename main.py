@@ -4,6 +4,7 @@ import training
 import results
 import read_data as data
 import sys
+import models
 
 if __name__ == "__main__":
 
@@ -14,12 +15,11 @@ if __name__ == "__main__":
     dataset_name = sys.argv[1].lower()
     computation = sys.argv[2].lower()
     rate = int(sys.argv[3])
-    opt = 'STRSAGA' #'STRSAGA' #sys.argv[4].upper()
+    opt = models.Opt.STRSAGA #'STRSAGA' #sys.argv[4].upper()
 
     results = results.Results(dataset_name)
 
-    algo_names = ['Candor']
-    # algo_names = ['Aware', 'MDDM', 'AUE', 'DriftSurf']
+    algo_names = ['Aware', 'MDDM', 'AUE', 'DriftSurf']
     expt = training.Training(dataset=dataset_name, computation=computation, rate=rate, base_learner=opt, algo_names=algo_names)
 
     N = 5
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     for i in range(N):
         print({'Trial {0}'.format(i)})
         logging.info('Trial {0}'.format(i))
-        output = expt.process(delta=0.1, loss_fn='reg', condition1='best_observed_perf', condition_switch='compare_trained')
+        output = expt.process(delta=0.1, loss_fn='reg')
         outputs.append(output)
 
     results.gather_training_results(outputs,computation)

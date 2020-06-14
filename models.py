@@ -401,17 +401,21 @@ class LogisticRegression_expert(Model):
         """
         self.weight = weight
 
-
 class LogisticRegression_DriftSurf:
     """
     A class to define DriftSurf Method
 
     """
-
+    ALGORITHM_NAME = 'DriftSurf'
     REG = 'reg'
     ACC = 'zero-one'
     DEFAULT_WEIGHT = 0.5
     GREEDY = 'greedy'
+    SWITCH_CONDITION_FROZEN = 'compare_frozen'
+    SWITCH_CONDITION_FROZEN_GAP = 'compare_frozen-delta_gap'
+    SWITCH_CONDITION_TRAINED = 'compare_trained'
+    SWITCH_CONDITION_TRAINED_GAP = 'compare_trained-delta_gap'
+    ENTER_REACTIVE_BEST = 'best_observed_perf'
 
     def __init__(self, d, opt, delta, loss_fn, r, reactive_method='greedy', condition1='best_observed_perf', condition_switch='compare_trained'):
         """
@@ -515,13 +519,14 @@ class LogisticRegression_DriftSurf:
         return self.predictive_model().predict(x, threshold)
 
     def enter_reactive_condition1(self):
-        """ Check if R_{X_t}(w) > R_b + delta
+        """ if 'best_observed_perf' : check  R_{X_t}(w) > R_b + delta
+            else use averaging over a sliding window approach
 
         :return: bool
         """
 
         # compare with the best observed performance so far
-        if self.conition1 == 'best_observed_perf':
+        if self.conition1 == self.ENTER_REACTIVE_BEST:
             condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_best_perf() + self.delta
         # compare with the average of a sliding window
         else:
@@ -568,21 +573,25 @@ class LogisticRegression_DriftSurf:
 
     def switch_after_reactive(self, mu):
         """ Determines if we need to switch to reactive model at the end of a reactvie state or not
+            if 'compare_frozen' check for R_T(w^f) > R_T(w')
+            if 'compare_frozen-delta_gap' check for R_T(w^f) > R_T(w') + delta''
+            if 'copmare_trained-delta_gap' check for R_T(w) > R_T(w') + delta''
+            if 'compare_trained' check for R_T(w) > R_T(w')
 
         :param mu:
         :return: bool
         """
 
         # compare with the performance of the frozen model (snapshot of the predictive model before entering the reactive state)
-        if self.condition_switch == 'compare_frozen':
+        if self.condition_switch == self.SWITCH_CONDITION_FROZEN:
             perf_to_compare = self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
 
         # compare with the performance of the frozen model + delta (snapshot of the predictive model before entering the reactive state)
-        elif self.condition_switch == 'compare_frozen-delta_gap':
+        elif self.condition_switch == self.SWITCH_CONDITION_FROZEN_GAP:
             perf_to_compare = -1 * self.delta/2 + self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
 
         # compare with the performance of the predictive model + delta (predictive model is kept training during the reactive state)
-        elif self.condition_switch == 'compare_trained-delta-gap':
+        elif self.condition_switch == self.SWITCH_CONDITION_TRAINED_GAP:
             perf_to_compare = -1 * self.delta/2 + self.expert_predictive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_predictive.zero_one_loss(self.sample_reactive)
 
         # default case: compare with the performance of the predictive model (predictive model is kept training during the reactive state)
@@ -627,6 +636,7 @@ class LogisticRegression_AUE:
         'Brzezinski, D. and Stefanowski, J.  Reacting to differenttypes of concept drift: The accuracy updated ensemblealgorithm.IEEE Trans. Neural Netw. Learn. Syst, 25(1):81–94, 2013.'
 
     """
+    ALGORITHM_NAME = 'AUE'
     K = 10
     # K = 2
     EPS = 1e-20
@@ -692,9 +702,9 @@ class LogisticRegression_Candor:
         430 109:533–568, 2020.'
 
     """
+    ALGORITHM_NAME = 'Candor'
     K = 25
     # MU = 400
-    MU = 1e-3
     ETA = 0.75
 
     def __init__(self, d, opt):
@@ -703,76 +713,43 @@ class LogisticRegression_Candor:
         self.opt = opt
         self.experts = collections.deque(maxlen=LogisticRegression_Candor.K)
 
-    # def predict(self, x, predict_threshold=0.5):
-    #     wp = 0
-    #     wn = 0
-    #     for e in self.experts:
-    #         if (e.predict(x, predict_threshold) == 1):
-    #             wp += e.get_weight()
-    #         else:
-    #             wn += e.get_weight()
-    #
-    #         # e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
-    #     return 1 if wp > wn else -1
-
     def predict(self, training_point, predict_threshold=0.5):
         wp = 0
         wn = 0
         (i, x, y) = training_point
-        for e in self.experts:
+        for (e, wp_e) in self.experts:
             if (e.predict(x, predict_threshold) == 1):
                 wp += e.get_weight()
             else:
                 wn += e.get_weight()
 
-            e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+            e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([training_point]) * LogisticRegression_Candor.ETA))
+            self.normalize_weights()
         return 1 if wp > wn else -1
 
     def update_weights(self, training_point):
         (i, x, y) = training_point
 
-        for e in self.experts:
+        for (e, wp_e) in self.experts:
             e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
-    #
-    # def update_weights_batch(self, batch):
-    #     for training_point in batch:
-    #         (i, x, y) = training_point
-    #
-    #         for e in self.experts:
-    #             e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
-
-    # def predict(self, x, predict_threshold=0.5):
-    #     if len(self.experts) == 0:
-    #         return 1
-    #
-    #     e = self.experts[-1]
-    #     return e.predict(x, predict_threshold)
-    #
-    # def get_weighted_combination(self):
-    #     self.normalize_weights()
-    #     w = numpy.zeros(self.d)
-    #     if len(self.experts) != 0:
-    #         w += self.experts[-1].param
-    #     return w
 
     def zero_one_loss(self, data, predict_threshold=0.5):
         if len(data) == 0:
             return 0
         return sum(self.predict((i,x,y), predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
-        # return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
 
     def get_weighted_combination(self):
         self.normalize_weights()
         w = numpy.zeros(self.d)
-        for e in self.experts:
+        for (e, wp_e) in self.experts:
             w += e.param * e.get_weight()
         return w
 
     def normalize_weights(self):
-        s = sum(e.get_weight() for e in self.experts)
-        for e in self.experts:
+        s = sum(e.get_weight() for (e, wp_e) in self.experts)
+        for (e, wp_e) in self.experts:
             e.update_weight(e.get_weight() / s)
 
     def reset_weights(self):
-        for e in self.experts:
+        for (e, wp_e) in self.experts:
             e.update_weight(1. / len(self.experts))

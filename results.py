@@ -155,14 +155,14 @@ class Results:
         return outputs
 
     @staticmethod
-    def plot_training(output:dict, dataset_name, b_in, path, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf']):
+    def plot_training(output, dataset_name, b_in, path, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf']):
 
         mpl.rcParams['lines.linewidth'] = 1.0
         mpl.rcParams['lines.markersize'] = 4
 
         b = min(b_in, 100)  # if b > 100, plot results of 100 time steps per plot
 
-        for i in range(max(math.ceil(b / 100), 1)):
+        for i in range(max(math.ceil(b_in / 100), 1)):
 
             t = 1
             first = max(1, i * b)
@@ -175,13 +175,13 @@ class Results:
             plt.clf()
 
             colors = ['black', 'green', 'red', 'blue', 'brown', 'magenta']
-            # colors = ['black', 'brown', 'magenta', 'blue']
             markers = ['^', 's', 'o', 'x', '.', '+']
             k = 0
             for key in algorithms:
                 linestyle = '-' if key == 'Aware' else '--'
                 label = 'DriftSurf' if key == 'DSURF' else key
                 label = '1PASS-SGD' if key == 'SGD' else label
+                label = 'AUE-(k=2)' if key == 'AUE' else label
                 plt.plot(xx, output[key][first:last], colors[k], label=label, marker=markers[k], linestyle=linestyle,
                      markevery=10)
                 k += 1

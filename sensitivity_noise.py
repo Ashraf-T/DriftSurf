@@ -18,7 +18,7 @@ class Sensitivity_noise:
         for algo in self.algo_names:
             self.ave_over_time[algo] = []
 
-    def process(self, delta=0.1, loss_fn='zero_one', drift_detector=MDDM_G(), condition1='best_observed_perf', condition_switch='compare_trained'):
+    def process(self, delta=0.1, loss_fn='reg', drift_detector=MDDM_G(), condition1='best_observed_perf', condition_switch='compare_trained'):
 
         for noise in self.noise_levels:
             dataset_name = 'sea{0}'.format(noise)

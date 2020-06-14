@@ -40,4 +40,4 @@ if __name__ == "__main__":
     results.Results.plot_greedy(dataset_name, outputs, path)
     for method in outputs.keys():
         print('average over time for {0} : {1}'.format(method, numpy.mean(outputs[method])))
-        # logging.info('average over time for {0} : {1}'.format(method, numpy.mean(outputs[method])))
+        logging.info('average over time for {0} : {1}'.format(method, numpy.mean(outputs[method])))
