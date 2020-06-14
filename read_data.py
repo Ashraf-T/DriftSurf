@@ -3,15 +3,18 @@ import math
 
 class read_dataset:
 
-    AVAILABLE_DATASETS = ['sine1', 'sea0', 'sea10', 'sea20', 'sea30', 'hyperplane_slow', 'hyperplane_fast',
+    AVAILABLE_DATASETS = ['sine1', 'sea0', 'sea10', 'sea20', 'sea30', 'sea_gradual', 'mixed', 'Circles', 'hyperplane_slow', 'hyperplane_fast',
                           'powersupply', 'elec', 'airline', 'rcv', 'covtype']
 
     def read(self, dataset_name):
 
         if dataset_name.startswith('sea'):
-            name = 'sea'
-            noise_level = dataset_name[3:]
-            return getattr(self, name)(noise_level)
+            if dataset_name == 'sea_gradual':
+                return getattr(self, dataset_name)()
+            else:
+                name = 'sea'
+                noise_level = dataset_name[3:]
+                return getattr(self, name)(noise_level)
 
         elif dataset_name.startswith('hyperplane'):
             name = 'hyperplane'
@@ -54,7 +57,38 @@ class read_dataset:
 
         return X, Y, n, d, drift_times
 
-    def sea(self, noise_level=10):
+    def mixed(self):
+        """
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
+        n = 100000
+        d = 4 + 1
+        drift_times = [20, 40, 60, 80]
+
+        X = []
+        Y = []
+
+        with open('data/synthetic/MIXED.arff') as file:
+            reader = csv.reader(file, delimiter=',')
+            i = 0
+            for line in reader:
+                features = {}
+                features[0] = 1 if line[0] == 'True' else 0
+                features[1] = 1 if line[1] == 'True' else 0
+                for j in range(2, d - 1):
+                    features[j] = float(line[j])
+                features[d - 1] = 1
+                label = 1 if line[d - 1] == 'p' else -1
+
+                X.append(features)
+                Y.append(label)
+                i += 1
+        assert len(X) == n
+
+        return X, Y, n, d, drift_times
+
+    def sea(self, noise_level=0):
         """ read synthetic dataset sea which is generated using MOA framework
             'Bifet, A., Holmes, G., Kirkby, R., and Pfahringer, B. Moa:Massive online analysis.JMLR, 11:1601–1604, 2010.'
 
@@ -79,6 +113,68 @@ class read_dataset:
                     features[j] = float(line[j])
                 features[d - 1] = 1
                 label = 1 if line[d - 1] == 'groupA' else -1
+
+                X.append(features)
+                Y.append(label)
+                i += 1
+        assert len(X) == n
+
+        return X, Y, n, d, drift_times
+
+    def sea_gradual(self):
+        """ read synthetic dataset sea which is generated using MOA framework
+            'Bifet, A., Holmes, G., Kirkby, R., and Pfahringer, B. Moa:Massive online analysis.JMLR, 11:1601–1604, 2010.'
+
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
+        n = 100000
+        d = 3 + 1
+        drift_times = [40, 60]
+
+        X = []
+        Y = []
+
+        with open('data/synthetic/sea_gradual.arff') as file:
+            reader = csv.reader(file, delimiter=',')
+            i = 0
+            for line in reader:
+                features = {}
+                for j in range(d - 1):
+                    features[j] = float(line[j])
+                features[d - 1] = 1
+                label = 1 if line[d - 1] == 'groupA' else -1
+
+                X.append(features)
+                Y.append(label)
+                i += 1
+        assert len(X) == n
+
+        return X, Y, n, d, drift_times
+
+    def circles(self):
+        """ read synthetic dataset sea which is generated using MOA framework
+            'Bifet, A., Holmes, G., Kirkby, R., and Pfahringer, B. Moa:Massive online analysis.JMLR, 11:1601–1604, 2010.'
+
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
+        n = 10000
+        d = 2 + 1
+        drift_times = [25, 30, 50, 55, 75, 80]
+
+        X = []
+        Y = []
+
+        with open('data/synthetic/circles.arff') as file:
+            reader = csv.reader(file, delimiter=',')
+            i = 0
+            for line in reader:
+                features = {}
+                for j in range(d - 1):
+                    features[j] = float(line[j])
+                features[d - 1] = 1
+                label = 1 if line[d - 1] == 'p' else -1
 
                 X.append(features)
                 Y.append(label)

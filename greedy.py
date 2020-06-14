@@ -21,7 +21,7 @@ class greedy:
         train = training.Training(self.dataset_name, algo_names=['DriftSurf'])
         outputs = {}
         for method in [models.LogisticRegression_DriftSurf.GREEDY, 'no-Greedy']:
-            outputs[method] = train.process(delta, loss_fn, method=method)['DriftSurf']
+            outputs[method] = train.process(delta, loss_fn, reactive_method=method)['DriftSurf']
         return outputs
 
 if __name__ == "__main__":
@@ -40,4 +40,4 @@ if __name__ == "__main__":
     results.Results.plot_greedy(dataset_name, outputs, path)
     for method in outputs.keys():
         print('average over time for {0} : {1}'.format(method, numpy.mean(outputs[method])))
-        # logging.info('average over time for {0} : {1}'.format(method, numpy.mean(outputs[method])))
+        logging.info('average over time for {0} : {1}'.format(method, numpy.mean(outputs[method])))

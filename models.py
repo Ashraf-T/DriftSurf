@@ -1,7 +1,7 @@
 import numpy
 from scipy.special import expit
 import logging
-
+import collections
 
 class Opt:
     """
@@ -200,6 +200,25 @@ class LogisticRegression_expert(Model):
         for (k, v) in x.items():
             self.param[k] -= step_size * (-1 * p * y * v)
 
+    def sgd_step_biased(self, training_point, step_size, mu, wp):
+        """ updates the model using sgd method
+
+        :param training_point: tuple : (int, {int:float}, int)
+            training data point in form of (i, x, y) where i is its index, x is a dictionary of the
+            features (key, value) pairs, and y is the label which can be either 1 or -1
+        :param step_size: float
+            step size used to update the model
+        :param mu: float
+            L2-regularization const
+        """
+
+        (i, x, y) = training_point
+        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+
+        self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
+        for (k, v) in x.items():
+            self.param[k] -= step_size * (-1 * p * y * v)
+
     def strsaga_step(self, training_point, step_size, mu):
         """ updates the model using strsaga method
 
@@ -219,6 +238,34 @@ class LogisticRegression_expert(Model):
         m = len(self.table) if len(self.table) != 0 else 1
 
         self.param[:] = (1 - step_size * mu) * self.param
+        for (k, v) in x.items():
+            self.param[k] -= step_size * (g - alpha) * v
+        self.param -= step_size * (1. / m) * self.table_sum
+
+        self.table[i] = g
+
+        for (k, v) in x.items():
+            self.table_sum[k] += (g - alpha) * v
+
+    def strsaga_step_biased(self, training_point, step_size, mu, wp):
+        """ updates the model using strsaga method
+
+        :param training_point: tuple : (int, {int:float}, int)
+            training data point in form of (i, x, y) where i is its index, x is a dictionary of the
+            features (key, value) pairs, and y is the label which can be either 1 or -1
+        :param step_size: float
+            step size used to update the model
+        :param mu: float
+            L2-regularization const
+        """
+
+        (i, x, y) = training_point
+        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+        g = -1 * p * y
+        alpha = self.table[i] if i in self.table else 0
+        m = len(self.table) if len(self.table) != 0 else 1
+
+        self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
         for (k, v) in x.items():
             self.param[k] -= step_size * (g - alpha) * v
         self.param -= step_size * (1. / m) * self.table_sum
@@ -355,7 +402,7 @@ class LogisticRegression_DriftSurf:
     DEFAULT_WEIGHT = 0.5
     GREEDY = 'greedy'
 
-    def __init__(self, d, opt, delta, loss_fn, method='greedy'):
+    def __init__(self, d, opt, delta, loss_fn, reactive_method='greedy'):
         """
 
         :param d:
@@ -369,7 +416,7 @@ class LogisticRegression_DriftSurf:
         self.loss_fn = loss_fn
         self.delta = delta
         self.sample_reactive = []
-        self.method = method
+        self.reactive_method = reactive_method
 
         self.expert_predictive = LogisticRegression_expert(numpy.random.rand(d), self.opt)
         self.expert_stable = None
@@ -406,7 +453,7 @@ class LogisticRegression_DriftSurf:
 
         :return:
         """
-        if not self.stable and self.method == self.GREEDY and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
+        if not self.stable and self.reactive_method == self.GREEDY and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
             return self.expert_reactive
         else:
             return self.expert_predictive
@@ -459,8 +506,8 @@ class LogisticRegression_DriftSurf:
         """
 
         condition1 = self.expert_predictive.get_current_perf() > self.expert_predictive.get_best_perf() + self.delta
-        # if condition1:
-        #     logging.info('condition 1 holds')
+        if condition1:
+            logging.info('condition 1 holds')
 
         return condition1
 
@@ -471,8 +518,8 @@ class LogisticRegression_DriftSurf:
         """
 
         condition2 = (self.expert_stable) and self.expert_predictive.get_current_perf() > self.expert_stable.get_current_perf() + self.delta/2
-        # if condition2:
-        #     logging.info('condition 2 holds')
+        if condition2:
+            logging.info('condition 2 holds')
 
         return condition2
 
@@ -488,11 +535,9 @@ class LogisticRegression_DriftSurf:
         if self.stable and (self.enter_reactive_condition1() or self.enter_reactive_condition2()):
             self.stable = False
             self.expert_reactive = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DriftSurf.DEFAULT_WEIGHT)
-            self.expert_predictive.update_weight(0.5)
+            self.expert_predictive.update_weight(LogisticRegression_DriftSurf.DEFAULT_WEIGHT)
             current_perf = self.expert_reactive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_reactive.zero_one_loss(data)
             self.expert_reactive.update_perf(current_perf)
-
-            self.expert_frozen = LogisticRegression_expert(numpy.copy(self.expert_predictive.param), self.opt)
 
             return True
 
@@ -505,12 +550,12 @@ class LogisticRegression_DriftSurf:
         :return: bool
         """
 
-        perf_frozen = self.expert_frozen.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_frozen.zero_one_loss(self.sample_reactive)
+        perf_model = self.expert_predictive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_predictive.zero_one_loss(self.sample_reactive)
         perf_reactive = self.expert_reactive.reg_loss(self.sample_reactive, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_reactive.zero_one_loss(self.sample_reactive)
 
-        # logging.info(('Performance of frozen : {0}, reactive : {1}').format(perf_frozen, perf_reactive))
+        logging.info(('Performance of mode : {0}, reactive : {1}').format(perf_model, perf_reactive))
 
-        return (perf_frozen > perf_reactive)
+        return (perf_model > perf_reactive)
 
     def exit_reactive(self, buffer_pointer, mu):
         """ The process of exiting a reactive state
@@ -527,9 +572,9 @@ class LogisticRegression_DriftSurf:
             self.expert_stable = LogisticRegression_expert(numpy.random.rand(self.d), self.opt, buffer_pointer, LogisticRegression_DriftSurf.DEFAULT_WEIGHT)
             self.sample_reactive = []
 
-        #     logging.info('exit reactive state with new')
-        # else:
-        #     logging.info('exit reactive state with old')
+            logging.info('exit reactive state with new')
+        else:
+            logging.info('exit reactive state with old')
 
     def update_reactive_sample_set(self, data):
         """ updates reactive sample set by adding the given data to it
@@ -600,3 +645,63 @@ class LogisticRegression_AUE:
         s = sum(self.experts[k].get_weight() for k in self.experts.keys())
         for k in self.experts.keys():
             self.experts[k].update_weight(self.experts[k].get_weight()/s)
+
+class LogisticRegression_Candor:
+    """
+        A class to define Candor Method presented in :
+        'P. Zhao, L.-W. Cai, and Z.-H. Zhou. Handling concept drift via model reuse. Machine Learning,
+        430 109:533–568, 2020.'
+
+    """
+    K = 25
+    ETA = 0.75
+    #     MU = 400
+
+    def __init__(self, d, opt):
+        self.init_w = numpy.random.rand(d)
+        self.d = d
+        self.opt = opt
+        self.experts = collections.deque(maxlen=LogisticRegression_Candor.K)
+
+
+    def predict(self, training_point, predict_threshold=0.5):
+        wp = 0
+        wn = 0
+        (i, x, y) = training_point
+        for (e, wp_e) in self.experts:
+            if (e.predict(x, predict_threshold) == 1):
+                wp += e.get_weight()
+            else:
+                wn += e.get_weight()
+
+            e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+            self.normalize_weights()
+
+        return 1 if wp > wn else -1
+
+    def update_weights(self, training_point):
+        (i, x, y) = training_point
+
+        for (e, wp_e) in self.experts:
+            e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
+
+    def zero_one_loss(self, data, predict_threshold=0.5):
+        if len(data) == 0:
+            return 0
+        return sum(self.predict((i,x,y), predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+
+    def get_weighted_combination(self):
+        self.normalize_weights()
+        w = numpy.zeros(self.d)
+        for (e, wp_e) in self.experts:
+            w += e.param * e.get_weight()
+        return w
+
+    def normalize_weights(self):
+        s = sum(e.get_weight() for (e, wp_e) in self.experts)
+        for (e, wp_e) in self.experts:
+            e.update_weight(e.get_weight() / s)
+
+    def reset_weights(self):
+        for (e, wp_e) in self.experts:
+            e.update_weight(1. / len(self.experts))

@@ -11,11 +11,12 @@ class Training:
 
     STRSAGA = models.Opt.STRSAGA
     SGD = models.Opt.SGD
-    LIMITED = 'algorithm'
+    LIMITED = 'all_models'
+    UNLIMITED = 'each_model'
     BEFORE = 'B'
     AFTER = 'A'
 
-    def __init__(self, dataset, computation='model', rate=2, base_learner = 'STRSAGA', algo_names=['Aware', 'SGD', 'OBL', 'MDDM', 'AUE', 'DriftSurf']):
+    def __init__(self, dataset, computation='each_model', rate=2, base_learner = models.Opt.STRSAGA.upper(), algo_names=['Aware', 'SGD', 'OBL', 'MDDM', 'AUE', 'DriftSurf']):
         """
 
         :param dataset: str
@@ -106,7 +107,7 @@ class Training:
         for algo in self.algorithms:
             self.loss[algo][time] = getattr(self, algo).zero_one_loss(test_set)
 
-    def setup_algorithms(self, delta, loss_fn, detector=MDDM_G(), Aware_reset = 'B', r=None, method='greedy'):
+    def setup_algorithms(self, delta, loss_fn, detector=MDDM_G(), Aware_reset = 'B', r=None, reactive_method=models.LogisticRegression_DriftSurf.GREEDY):
         """
             set parameters of algorithms in the begining of the training
         :param delta: float
@@ -122,12 +123,12 @@ class Training:
         """
 
         for algo in self.algorithms:
-            if algo == 'DriftSurf': self.setup_DriftSurf(delta, loss_fn, r, method)
+            if algo == 'DriftSurf': self.setup_DriftSurf(delta, loss_fn, r, reactive_method)
             elif algo == 'MDDM': self.setup_MDDM(detector)
             elif algo == 'Aware': self.setup_Aware(Aware_reset)
             else: getattr(self, 'setup_{0}'.format(algo))()
 
-    def setup_DriftSurf(self, delta, loss_fn, r=None, method='greedy'):
+    def setup_DriftSurf(self, delta, loss_fn, r=None, method=models.LogisticRegression_DriftSurf.GREEDY):
         """
             setup parameters of DriftSurf
         :param delta: float
@@ -178,6 +179,12 @@ class Training:
         """
         self.OBL = models.LogisticRegression_expert(numpy.random.rand(self.d), Training.STRSAGA)
 
+    def setup_Candor(self):
+        """
+            setup Candor
+        """
+        self.Candor = models.LogisticRegression_Candor(self.d, self.opt)
+
     def update_strsaga_model(self, model):
         """
             update the given model based on strsaga algorithm presented in 'Jothimurugesan, E., Tahmasbi, A., Gibbons, P., and Tirtha-pura, S. Variance-reduced stochastic gradient descent onstreaming data. InNeurIPS, pp. 9906–9915, 2018.'
@@ -197,6 +204,21 @@ class Training:
                 model.update_step(point, self.step_size, self.mu)
             model.update_effective_set(lst[1])
 
+    def update_strsaga_model_biased(self, model, wp):
+        if model:
+            weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            lst = list(model.T_pointers)
+            for s in range(int(self.rho * weight)):
+                if s % 2 == 0 and lst[1] < self.S + self.lam:
+                    j = lst[1]
+                    lst[1] += 1
+                else:
+                    j = random.randrange(lst[0], lst[1])
+                point = (j, self.X[j], self.Y[j])
+                model.strsaga_step_biased(point, self.step_size, self.mu, wp)
+            model.update_effective_set(lst[1])
+
+
     def update_sgd_model(self, model):
         """
             update the given model based on SGD algorithm
@@ -211,6 +233,16 @@ class Training:
                 j = random.randrange(lst[0], lst[1] + self.lam)
                 point = (j, self.X[j], self.Y[j])
                 model.update_step(point, self.step_size, self.mu)
+            model.update_effective_set(lst[1] + self.lam)
+
+    def update_sgd_model_biased(self, model, wp):
+        if model:
+            weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            lst = list(model.T_pointers)
+            for s in range(int(self.rho * weight)):
+                j = random.randrange(lst[0], lst[1] + self.lam)
+                point = (j, self.X[j], self.Y[j])
+                model.step_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
             model.update_effective_set(lst[1] + self.lam)
 
     # single-pass SGD
@@ -241,7 +273,7 @@ class Training:
         if (self.MDDM_drift_detector.test(self.MDDM, new_batch) and time != 0):
             self.MDDM = models.LogisticRegression_expert(numpy.random.rand(self.d), self.opt, self.S)
             self.MDDM_drift_detector.reset()
-            # logging.info('MDDM drift detected, reset model : {0}'.format(time))
+            logging.info('MDDM drift detected, reset model : {0}'.format(time))
 
         getattr(self, 'update_{0}_model'.format(self.opt))(self.MDDM)
 
@@ -254,9 +286,29 @@ class Training:
                 newly arrived batch of data points
         """
         self.AUE.update_weights(new_batch)
-        # logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.experts.keys()]))
+        logging.info('AUE Experts at time {0}: {1}'.format(time, [int(k / self.lam) for k in self.AUE.experts.keys()]))
         for index, expert in self.AUE.experts.items():
             getattr(self, 'update_{0}_model'.format(self.opt))(expert)
+
+    def process_Candor(self, time, new_batch):
+        """
+            Candor's process at time t given a newly arrived batch of data points
+        :param time: int
+                time step
+        :param new_batch:
+                newly arrived batch of data points
+        """
+        # update_all = False
+
+        wp = self.Candor.get_weighted_combination()
+        expert = models.LogisticRegression_expert(numpy.random.rand(self.d), self.opt, self.S)  # alt: first arg is wp
+        if time == 0:
+            getattr(self, 'update_{0}_model'.format(self.opt))(expert)
+        else:
+            getattr(self, 'update_{0}_model_biased'.format(self.opt))(expert, wp)
+
+        self.Candor.experts.append((expert, wp))
+        self.Candor.reset_weights()
 
     def process_DriftSurf(self, time, new_batch):
         """
@@ -271,7 +323,7 @@ class Training:
         if self.DriftSurf.stable:
             if self.DriftSurf.enter_reactive(self.S, new_batch, self.mu):
                 self.DriftSurf_t = 0
-                # logging.info('DriftSurf enters reactive state : {0}'.format(time))
+                logging.info('DriftSurf enters reactive state : {0}'.format(time))
 
             else:
                 # update models
@@ -307,7 +359,7 @@ class Training:
     def process_SGD(self):
         self.update_sgd_SP_model(self.SGD)
 
-    def process(self, delta=0.2, loss_fn='zero-one', drift_detectr=MDDM_G(), Aware_reset='B', r=None, method='greedy'):
+    def process(self, delta=0.1, loss_fn='reg', drift_detectr=MDDM_G(), Aware_reset='B', r=None, reactive_method=models.LogisticRegression_DriftSurf.GREEDY):
         """
             Train algorithms over the given dataset arrivin in streaming setting over b batches
         :param delta:
@@ -323,18 +375,16 @@ class Training:
         """
 
         self.S = 0
-        # self.rho = int(self.lam * rate)
-        self.setup_algorithms(delta, loss_fn, drift_detectr, Aware_reset, r, method)
+        self.setup_algorithms(delta, loss_fn, drift_detectr, Aware_reset, r, reactive_method)
 
         for algo in self.algorithms:
             self.loss[algo] = [0] * self.b
 
-        # logging.info('dataset : {0}, n : {1}, b : {2}'.format(self.dataset_name, self.n, self.b))
-
+        logging.info('dataset : {0}, n : {1}, b : {2}'.format(self.dataset_name, self.n, self.b))
 
         for time in range(self.b):
 
-            # print(time)
+            print(time)
 
             if time in self.drift_times and 'Aware' in self.algorithms and self.Aware_reset == Training.BEFORE:
                 self.setup_Aware()
