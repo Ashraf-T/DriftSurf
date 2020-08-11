@@ -9,3 +9,7 @@ STEP_SIZE = {
 b = {'default': 100, 'elec': 34}
 r = {'default': 4}
 
+NOMINAL = {
+        'mixed': [0, 1],
+        'elec': [1, 2, 3, 4, 5, 6, 7]
+    }

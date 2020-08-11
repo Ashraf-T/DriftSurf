@@ -63,6 +63,9 @@ class Training:
             yy0[0] = 1 if yy == 1 else 0
             Y0.append(yy0)
         self.Y = Y0
+        
+        models.DatasetName.name = self.dataset_name
+
 
 
         if self.dataset_name.startswith('sea'):
@@ -249,23 +252,25 @@ class Training:
                 # model.strsaga_step_biased(point, self.step_size, self.mu, wp)
             # model.update_effective_set(lst[1])
 
-
     def update_sgd_model(self, model):
         """
             update the given model based on SGD algorithm
         :param model:
                 the model to be updated
         """
-        if model: self.update_model(model)
-        # if model:
-            # weight = model.get_weight() if self.computation == Training.LIMITED else 1
-            # lst = list(model.T_pointers)
-            # for s in range(int(self.rho * weight)):
-
-                # j = random.randrange(lst[0], lst[1] + self.lam)
-                # point = (j, self.X[j], self.Y[j])
-                # model.update_step(point, self.step_size, self.mu)
-            # model.update_effective_set(lst[1] + self.lam)
+        # if model: self.update_model(model)
+        if model:
+            weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            lst = list(model.T_pointers)
+            total_iters = int(self.rho * weight)
+            for j in range(self.S, self.S + min(self.lam, total_iters)):
+                point = (j, self.X[j], self.Y[j])
+                model.update_step(point, self.step_size, self.mu)
+            model.update_effective_set(lst[1] + self.lam)
+            for s in range(total_iters - self.lam):
+                j = random.randrange(lst[0], lst[1] + self.lam)
+                point = (j, self.X[j], self.Y[j])
+                model.update_step(point, self.step_size, self.mu)
 
     def update_sgd_model_biased(self, model, wp):
         if model: self.update_model(model)

@@ -5,7 +5,11 @@ import collections
 from skmultiflow.trees import HoeffdingTreeClassifier
 from skmultiflow.trees import HoeffdingAdaptiveTreeClassifier
 from skmultiflow.bayes import NaiveBayes
+import hyperparameters
 
+
+class DatasetName:
+    name = "_"
 
 class Opt:
     """
@@ -175,8 +179,13 @@ class LogisticRegression_expert(Model):
         self.perf = (None, None, None) # current, previous, best observed
         
         
-        # self.clf = HoeffdingTreeClassifier()
-        self.clf = NaiveBayes()
+        if DatasetName.name in hyperparameters.NOMINAL:
+            nominal_attributes = hyperparameters.NOMINAL[DatasetName.name]
+        else:
+            nominal_attributes = []
+        self.clf = HoeffdingTreeClassifier(nominal_attributes=nominal_attributes)
+        # self.clf = NaiveBayes(nominal_attributes=nominal_attributes)
+        
 
     # def dot_product(self, x):
         # """ computes the dot product of input x's features and the model parameter
@@ -738,7 +747,11 @@ class LogisticRegression_Candor:
 class HoeffdingAdaptiveTree:
       
     def __init__(self):
-        self.clf = HoeffdingAdaptiveTreeClassifier()
+        if DatasetName.name in hyperparameters.NOMINAL:
+            nominal_attributes = hyperparameters.NOMINAL[DatasetName.name]
+        else:
+            nominal_attributes = []
+        self.clf = HoeffdingAdaptiveTreeClassifier(nominal_attributes=nominal_attributes)
         
     def update_model(self, training_point):
         (i, x, y) = training_point
