@@ -183,8 +183,8 @@ class LogisticRegression_expert(Model):
             nominal_attributes = hyperparameters.NOMINAL[DatasetName.name]
         else:
             nominal_attributes = []
-        self.clf = HoeffdingTreeClassifier(nominal_attributes=nominal_attributes)
-        # self.clf = NaiveBayes(nominal_attributes=nominal_attributes)
+        # self.clf = HoeffdingTreeClassifier(nominal_attributes=nominal_attributes)
+        self.clf = NaiveBayes(nominal_attributes=nominal_attributes)
         
 
     # def dot_product(self, x):
@@ -620,7 +620,7 @@ class LogisticRegression_AUE:
         'Brzezinski, D. and Stefanowski, J.  Reacting to differenttypes of concept drift: The accuracy updated ensemblealgorithm.IEEE Trans. Neural Netw. Learn. Syst, 25(1):81–94, 2013.'
 
     """
-    K = 10
+    K = 2
     EPS = 1e-20
     
     def __init__(self, d, opt):
