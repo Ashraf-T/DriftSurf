@@ -34,9 +34,9 @@ class SuperDetector:
         raise NotImplementedError('THE RESET FUNCTION HAS NOT BEEN DEFINED IN THE CHILD')
 
     def test(self, model, test_set):
-        for (i, x, y) in test_set:
-            y_hat = model.predict(x)
-            _, drift_status = self.detect(y == y_hat)
+        for x in test_set:
+            y_hat = model.do_testing(x)
+            _, drift_status = self.detect(x[-1] == y_hat)
             if drift_status:
                 return True
         return False

@@ -2,6 +2,7 @@ import numpy
 from scipy.special import expit
 import logging
 import collections
+import copy
 
 class Opt:
     """
@@ -423,6 +424,8 @@ class LogisticRegression_DriftSurf:
         self.expert_reactive = None
         self.expert_frozen = None
 
+        self.predictor_in_reactive = []
+
     def get_stable(self):
         """ returns if the algorithm is in its sable state
 
@@ -453,8 +456,13 @@ class LogisticRegression_DriftSurf:
 
         :return:
         """
-        if not self.stable and self.reactive_method == self.GREEDY and self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
-            return self.expert_reactive
+        if not self.stable and self.reactive_method == self.GREEDY:
+            if self.expert_reactive.get_current_perf and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
+                self.predictor_in_reactive.append('r')
+                return self.expert_reactive
+            else:
+                self.predictor_in_reactive.append('p')
+                return self.expert_predictive
         else:
             return self.expert_predictive
 
@@ -539,6 +547,7 @@ class LogisticRegression_DriftSurf:
             current_perf = self.expert_reactive.reg_loss(data, mu) if self.loss_fn == LogisticRegression_DriftSurf.REG else self.expert_reactive.zero_one_loss(data)
             self.expert_reactive.update_perf(current_perf)
 
+            self.predictor_in_reactive = []
             return True
 
         return False
@@ -573,8 +582,15 @@ class LogisticRegression_DriftSurf:
             self.sample_reactive = []
 
             logging.info('exit reactive state with new')
+            logging.info('predictor during reactive state: {0}'.format(self.predictor_in_reactive))
+            num = 0
+            print(self.predictor_in_reactive)
+            while len(self.predictor_in_reactive) > 0 and self.predictor_in_reactive.pop() == 'r':
+                num -= 1
+            return True, num
         else:
             logging.info('exit reactive state with old')
+            return False, 0
 
     def update_reactive_sample_set(self, data):
         """ updates reactive sample set by adding the given data to it
@@ -705,3 +721,146 @@ class LogisticRegression_Candor:
     def reset_weights(self):
         for (e, wp_e) in self.experts:
             e.update_weight(1. / len(self.experts))
+
+class DriftSurf_general:
+    """
+    A class to define DriftSurf Method
+
+    """
+
+    ACC = 'zero-one'
+    DEFAULT_WEIGHT = 0.5
+    GREEDY = 'greedy'
+
+    def __init__(self, model, delta, reactive_method='greedy'):
+
+        self.stable = True
+        self.delta = delta
+        self.sample_reactive = []
+        self.reactive_method = reactive_method
+
+        self.model_init = copy.copy(model)
+        self.expert_predictive = copy.copy(model)
+        self.expert_stable = copy.copy(model)
+        self.expert_reactive = copy.copy(model)
+        self.expert_frozen = None
+
+        self.predictor_in_reactive = []
+        self.current_perf = {}
+        self.best_perf = {}
+
+
+    def get_stable(self):
+
+        return self.stable
+
+    def update_perf_all(self, data):
+
+        if self.expert_predictive.is_ready():
+            self.current_perf['predictive'] = self.zero_one_loss_model(self.expert_predictive, data)
+            self.best_perf['predictive'] = self.current_perf['predictive'] if 'predictive' not in self.best_perf.keys() else min(self.current_perf['predictive'], self.best_perf['predictive'])
+        if self.stable:
+            if self.expert_stable and self.expert_stable.is_ready():
+                self.current_perf['stable'] = self.zero_one_loss_model(self.expert_stable, data)
+                self.best_perf['stable'] = self.current_perf[
+                    'stable'] if 'stable' not in self.best_perf.keys() else min(self.current_perf['stable'],
+                                                                                        self.best_perf['stable'])
+
+        else:
+            if self.expert_reactive.is_ready():
+                self.current_perf['reactive'] = self.zero_one_loss_model(self.expert_reactive, data)
+                self.best_perf['reactive'] = self.current_perf['reactive'] if 'reactive' not in self.best_perf.keys() else min(self.current_perf['reactive'], self.best_perf['reactive'])
+
+    def predictive_model(self):
+
+        if not self.stable and self.reactive_method == self.GREEDY:
+            if self.current_perf['reactive'] and self.current_perf['reactive'] < self.current_perf['predictive']:
+                self.predictor_in_reactive.append('r')
+                return self.expert_reactive
+            else:
+                self.predictor_in_reactive.append('p')
+                return self.expert_predictive
+        else:
+            return self.expert_predictive
+
+    def zero_one_loss_model(self, model, data):
+
+        if len(data) == 0:
+            return 0
+
+        return sum(model.do_testing(x) != x[-1] for x in data) * 1.0 / len(data)
+
+    def zero_one_loss(self, data):
+
+        if len(data) == 0:
+            return 0
+
+        return sum(self.predictive_model().do_testing(x) != x[-1] for x in data) * 1.0 / len(data)
+
+    def predict(self, x):
+
+        return self.predictive_model().do_testing(x)
+
+    def enter_reactive_condition1(self):
+
+        condition1 = self.current_perf['predictive'] > self.best_perf['predictive'] + self.delta
+        if condition1:
+            logging.info('condition 1 holds')
+
+        return condition1
+
+    def enter_reactive_condition2(self):
+
+        condition2 = (self.expert_stable.is_ready()) and self.current_perf['predictive'] > self.current_perf['stable'] + self.delta/2
+        if condition2:
+            logging.info('condition 2 holds')
+
+        return condition2
+
+    def enter_reactive(self, data):
+
+        if self.stable and self.expert_predictive.is_ready() and (self.enter_reactive_condition1() or self.enter_reactive_condition2()):
+            self.stable = False
+            self.expert_reactive.reset()
+            self.current_perf['reactive'] = None
+            # self.current_perf['reactive'] = self.zero_one_loss_model(self.expert_reactive, data)
+
+            self.predictor_in_reactive = []
+            return True
+
+        return False
+
+    def switch_after_reactive(self):
+
+        perf_model = self.zero_one_loss_model(self.expert_predictive, self.sample_reactive)
+        perf_reactive = self.zero_one_loss_model(self.expert_reactive, self.sample_reactive)
+
+        logging.info(('Performance of mode : {0}, reactive : {1}').format(perf_model, perf_reactive))
+
+        return (perf_model > perf_reactive)
+
+    def exit_reactive(self):
+
+        self.stable = True
+
+        if self.switch_after_reactive():
+            # self.expert_predictive.__dict__ = self.expert_reactive.__dict__.copy()
+            self.expert_predictive = copy.copy(self.expert_reactive)
+
+            self.expert_stable.reset()
+            self.sample_reactive = []
+
+            logging.info('exit reactive state with new')
+            # logging.info('predictor during reactive state: {0}'.format(self.predictor_in_reactive))
+            num = 0
+
+            while len(self.predictor_in_reactive) > 0 and self.predictor_in_reactive.pop() == 'r':
+                num -= 1
+            return True, num
+        else:
+            logging.info('exit reactive state with old')
+            return False, 0
+
+    def update_reactive_sample_set(self, data):
+
+        self.sample_reactive.extend(data)

@@ -1,3 +1,9 @@
+@relation CIRCLES
+@attribute x real
+@attribute y real
+@attribute class {p,n}
+
+@data
 0.39870,0.31328,p
 0.34499,0.73330,p
 0.15981,0.64385,n

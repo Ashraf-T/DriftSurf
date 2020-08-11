@@ -1,3 +1,11 @@
+@relation MIXED
+@attribute v {False,True}
+@attribute w {False,True}
+@attribute x real
+@attribute y real
+@attribute class {p,n}
+
+@data
 True,False,0.094,0.028,p
 True,False,0.022,0.650,n
 False,True,0.686,0.969,n
