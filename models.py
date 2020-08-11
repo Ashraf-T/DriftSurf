@@ -647,7 +647,7 @@ class LogisticRegression_AUE:
         for index, expert in self.experts.items():
             mse = 0
             for (i, x, y) in test_set:
-                pr = expert.clf.predict_proba(x)[0][1]
+                pr = 1 - expert.clf.predict_proba(x)[0][0]
                 #pr = expit(expert.dot_product(x))
                 if y[0] == 1:
                 #if y == 1:
