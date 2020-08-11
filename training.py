@@ -48,6 +48,23 @@ class Training:
         read_data = data.read_dataset()
         self.X, self.Y, self.n, self.d, self.drift_times = read_data.read(self.dataset_name)
 
+        # convert into numpy arrays, and relabel 1/-1 to 1/0
+        X0 = []
+        for xx in self.X:
+            xx0 = numpy.zeros((1, self.d))
+            for (k, v) in xx.items():
+                xx0[0][k] = v
+            X0.append(xx0)
+        self.X = X0
+        
+        Y0 = []
+        for yy in self.Y:
+            yy0 = numpy.zeros(1)
+            yy0[0] = 1 if yy == 1 else 0
+            Y0.append(yy0)
+        self.Y = Y0
+
+
         if self.dataset_name.startswith('sea'):
             self.dataset_name = 'sea'
 
@@ -184,6 +201,18 @@ class Training:
             setup Candor
         """
         self.Candor = models.LogisticRegression_Candor(self.d, self.opt)
+        
+    def setup_HAT(self):
+        """
+            setup HAT
+        """
+        self.HAT = models.HoeffdingAdaptiveTree()
+        
+    def update_model(self, model):        
+        for j in range(self.S, self.S + self.lam):
+            point = (j, self.X[j], self.Y[j])
+            model.update_step(point, self.step_size, self.mu)
+        model.update_effective_set(self.S + self.lam)
 
     def update_strsaga_model(self, model):
         """
@@ -191,32 +220,34 @@ class Training:
         :param model:
             the model to be updated
         """
-        if model:
-            weight = model.get_weight() if self.computation == Training.LIMITED else 1
-            lst = list(model.T_pointers)
-            for s in range(int(self.rho * weight)):
-                if s % 2 == 0 and lst[1] < self.S + self.lam:
-                    j = lst[1]
-                    lst[1] += 1
-                else:
-                    j = random.randrange(lst[0], lst[1])
-                point = (j, self.X[j], self.Y[j])
-                model.update_step(point, self.step_size, self.mu)
-            model.update_effective_set(lst[1])
+        if model: self.update_model(model)
+        # if model:
+            # weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            # lst = list(model.T_pointers)
+            # for s in range(int(self.rho * weight)):
+                # if s % 2 == 0 and lst[1] < self.S + self.lam:
+                    # j = lst[1]
+                    # lst[1] += 1
+                # else:
+                    # j = random.randrange(lst[0], lst[1])
+                # point = (j, self.X[j], self.Y[j])
+                # model.update_step(point, self.step_size, self.mu)
+            # model.update_effective_set(lst[1])
 
     def update_strsaga_model_biased(self, model, wp):
-        if model:
-            weight = model.get_weight() if self.computation == Training.LIMITED else 1
-            lst = list(model.T_pointers)
-            for s in range(int(self.rho * weight)):
-                if s % 2 == 0 and lst[1] < self.S + self.lam:
-                    j = lst[1]
-                    lst[1] += 1
-                else:
-                    j = random.randrange(lst[0], lst[1])
-                point = (j, self.X[j], self.Y[j])
-                model.strsaga_step_biased(point, self.step_size, self.mu, wp)
-            model.update_effective_set(lst[1])
+        if model: self.update_model(model)
+        # if model:
+            # weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            # lst = list(model.T_pointers)
+            # for s in range(int(self.rho * weight)):
+                # if s % 2 == 0 and lst[1] < self.S + self.lam:
+                    # j = lst[1]
+                    # lst[1] += 1
+                # else:
+                    # j = random.randrange(lst[0], lst[1])
+                # point = (j, self.X[j], self.Y[j])
+                # model.strsaga_step_biased(point, self.step_size, self.mu, wp)
+            # model.update_effective_set(lst[1])
 
 
     def update_sgd_model(self, model):
@@ -225,25 +256,27 @@ class Training:
         :param model:
                 the model to be updated
         """
-        if model:
-            weight = model.get_weight() if self.computation == Training.LIMITED else 1
-            lst = list(model.T_pointers)
-            for s in range(int(self.rho * weight)):
+        if model: self.update_model(model)
+        # if model:
+            # weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            # lst = list(model.T_pointers)
+            # for s in range(int(self.rho * weight)):
 
-                j = random.randrange(lst[0], lst[1] + self.lam)
-                point = (j, self.X[j], self.Y[j])
-                model.update_step(point, self.step_size, self.mu)
-            model.update_effective_set(lst[1] + self.lam)
+                # j = random.randrange(lst[0], lst[1] + self.lam)
+                # point = (j, self.X[j], self.Y[j])
+                # model.update_step(point, self.step_size, self.mu)
+            # model.update_effective_set(lst[1] + self.lam)
 
     def update_sgd_model_biased(self, model, wp):
-        if model:
-            weight = model.get_weight() if self.computation == Training.LIMITED else 1
-            lst = list(model.T_pointers)
-            for s in range(int(self.rho * weight)):
-                j = random.randrange(lst[0], lst[1] + self.lam)
-                point = (j, self.X[j], self.Y[j])
-                model.step_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
-            model.update_effective_set(lst[1] + self.lam)
+        if model: self.update_model(model)
+        # if model:
+            # weight = model.get_weight() if self.computation == Training.LIMITED else 1
+            # lst = list(model.T_pointers)
+            # for s in range(int(self.rho * weight)):
+                # j = random.randrange(lst[0], lst[1] + self.lam)
+                # point = (j, self.X[j], self.Y[j])
+                # model.step_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
+            # model.update_effective_set(lst[1] + self.lam)
 
     # single-pass SGD
     def update_sgd_SP_model(self, model):
@@ -252,14 +285,15 @@ class Training:
         :param model:
                 given model to be updated
         """
-        if model:
-            sgdOnline_T = self.S
-            for s in range(min(self.lam, self.rho)):
-                if sgdOnline_T < self.S + self.lam:
-                    j = sgdOnline_T
-                    sgdOnline_T += 1
-                point = (j, self.X[j], self.Y[j])
-                model.update_step(point, self.step_size, self.mu)
+        if model: self.update_model(model)
+        # if model:
+            # sgdOnline_T = self.S
+            # for s in range(min(self.lam, self.rho)):
+                # if sgdOnline_T < self.S + self.lam:
+                    # j = sgdOnline_T
+                    # sgdOnline_T += 1
+                # point = (j, self.X[j], self.Y[j])
+                # model.update_step(point, self.step_size, self.mu)
 
     def process_MDDM(self, time, new_batch):
         """
@@ -309,6 +343,11 @@ class Training:
 
         self.Candor.experts.append((expert, wp))
         self.Candor.reset_weights()
+        
+    def process_HAT(self, time, new_batch):
+        for j in range(self.S, self.S + self.lam):
+            point = (j, self.X[j], self.Y[j])
+            self.HAT.update_model(point)
 
     def process_DriftSurf(self, time, new_batch):
         """
@@ -347,14 +386,15 @@ class Training:
         """
             oblivious algorithm's process
         """
-        lst = list(self.OBL.T_pointers)
-        for s in range(self.rho):
-            if s % 2 == 0 and lst[1] < self.S + self.lam:
-                lst[1] += 1
-                j = random.randrange(lst[0], lst[1])
-            point = (j, self.X[j], self.Y[j])
-            self.OBL.update_step(point, self.step_size, self.mu)
-        self.OBL.update_effective_set(lst[1])
+        self.update_model(self.OBL)
+        # lst = list(self.OBL.T_pointers)
+        # for s in range(self.rho):
+            # if s % 2 == 0 and lst[1] < self.S + self.lam:
+                # lst[1] += 1
+                # j = random.randrange(lst[0], lst[1])
+            # point = (j, self.X[j], self.Y[j])
+            # self.OBL.update_step(point, self.step_size, self.mu)
+        # self.OBL.update_effective_set(lst[1])
 
     def process_SGD(self):
         self.update_sgd_SP_model(self.SGD)

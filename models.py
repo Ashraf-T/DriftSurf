@@ -2,6 +2,9 @@ import numpy
 from scipy.special import expit
 import logging
 import collections
+from skmultiflow.trees import HoeffdingTreeClassifier
+from skmultiflow.trees import HoeffdingAdaptiveTreeClassifier
+
 
 class Opt:
     """
@@ -159,27 +162,34 @@ class LogisticRegression_expert(Model):
                     weight of the expert (if used in ensemble of learners, default value is 1)
         """
 
-        self.param = init_param
+        #self.param = init_param
         self.weight = weight
         self.opt = opt
 
         self.T_pointers = (buffer_pointer, buffer_pointer)
 
-        self.table = {}
-        self.table_sum = numpy.zeros(self.param.shape)
+        #self.table = {}
+        #self.table_sum = numpy.zeros(self.param.shape)
 
         self.perf = (None, None, None) # current, previous, best observed
+        
+        
+        self.clf = HoeffdingTreeClassifier()
 
-    def dot_product(self, x):
-        """ computes the dot product of input x's features and the model parameter
+    # def dot_product(self, x):
+        # """ computes the dot product of input x's features and the model parameter
 
-        :param x: dict : {int:float}
-            a dictionary of input's feature in form of (key, value)
-        :return: float
-            returns the dot product of input x's features and the model parameter
-        """
+        # :param x: dict : {int:float}
+            # a dictionary of input's feature in form of (key, value)
+        # :return: float
+            # returns the dot product of input x's features and the model parameter
+        # """
 
-        return sum(self.param[k]*v for (k,v) in x.items())
+        # return sum(self.param[k]*v for (k,v) in x.items())
+        
+    def update_model(self, training_point):
+        (i, x, y) = training_point
+        self.clf.partial_fit(x, y)
 
     def sgd_step(self, training_point, step_size, mu):
         """ updates the model using sgd method
@@ -193,12 +203,13 @@ class LogisticRegression_expert(Model):
             L2-regularization const
         """
 
-        (i, x, y) = training_point
-        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+        self.update_model(training_point)
+        # (i, x, y) = training_point
+        # p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
 
-        self.param[:] = (1 - step_size * mu) * self.param
-        for (k, v) in x.items():
-            self.param[k] -= step_size * (-1 * p * y * v)
+        # self.param[:] = (1 - step_size * mu) * self.param
+        # for (k, v) in x.items():
+            # self.param[k] -= step_size * (-1 * p * y * v)
 
     def sgd_step_biased(self, training_point, step_size, mu, wp):
         """ updates the model using sgd method
@@ -212,12 +223,13 @@ class LogisticRegression_expert(Model):
             L2-regularization const
         """
 
-        (i, x, y) = training_point
-        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+        self.update_model(training_point)
+        # (i, x, y) = training_point
+        # p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
 
-        self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
-        for (k, v) in x.items():
-            self.param[k] -= step_size * (-1 * p * y * v)
+        # self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
+        # for (k, v) in x.items():
+            # self.param[k] -= step_size * (-1 * p * y * v)
 
     def strsaga_step(self, training_point, step_size, mu):
         """ updates the model using strsaga method
@@ -231,21 +243,22 @@ class LogisticRegression_expert(Model):
             L2-regularization const
         """
 
-        (i, x, y) = training_point
-        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
-        g = -1 * p * y
-        alpha = self.table[i] if i in self.table else 0
-        m = len(self.table) if len(self.table) != 0 else 1
+        self.update_model(training_point)
+        # (i, x, y) = training_point
+        # p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+        # g = -1 * p * y
+        # alpha = self.table[i] if i in self.table else 0
+        # m = len(self.table) if len(self.table) != 0 else 1
 
-        self.param[:] = (1 - step_size * mu) * self.param
-        for (k, v) in x.items():
-            self.param[k] -= step_size * (g - alpha) * v
-        self.param -= step_size * (1. / m) * self.table_sum
+        # self.param[:] = (1 - step_size * mu) * self.param
+        # for (k, v) in x.items():
+            # self.param[k] -= step_size * (g - alpha) * v
+        # self.param -= step_size * (1. / m) * self.table_sum
 
-        self.table[i] = g
+        # self.table[i] = g
 
-        for (k, v) in x.items():
-            self.table_sum[k] += (g - alpha) * v
+        # for (k, v) in x.items():
+            # self.table_sum[k] += (g - alpha) * v
 
     def strsaga_step_biased(self, training_point, step_size, mu, wp):
         """ updates the model using strsaga method
@@ -259,21 +272,22 @@ class LogisticRegression_expert(Model):
             L2-regularization const
         """
 
-        (i, x, y) = training_point
-        p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
-        g = -1 * p * y
-        alpha = self.table[i] if i in self.table else 0
-        m = len(self.table) if len(self.table) != 0 else 1
+        self.update_model(training_point)
+        # (i, x, y) = training_point
+        # p = 1. / (1 + numpy.exp(y * self.dot_product(x)))
+        # g = -1 * p * y
+        # alpha = self.table[i] if i in self.table else 0
+        # m = len(self.table) if len(self.table) != 0 else 1
 
-        self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
-        for (k, v) in x.items():
-            self.param[k] -= step_size * (g - alpha) * v
-        self.param -= step_size * (1. / m) * self.table_sum
+        # self.param[:] = (1 - step_size * mu) * self.param + step_size * mu * wp
+        # for (k, v) in x.items():
+            # self.param[k] -= step_size * (g - alpha) * v
+        # self.param -= step_size * (1. / m) * self.table_sum
 
-        self.table[i] = g
+        # self.table[i] = g
 
-        for (k, v) in x.items():
-            self.table_sum[k] += (g - alpha) * v
+        # for (k, v) in x.items():
+            # self.table_sum[k] += (g - alpha) * v
 
     def predict(self, x, predict_threshold=0.5):
         """ predicts the label for the given input x
@@ -287,7 +301,8 @@ class LogisticRegression_expert(Model):
             predicted label for the input either 1 or -1
         """
 
-        return 1 if expit(self.dot_product(x)) > predict_threshold else -1
+        return self.clf.predict(x)[0]
+        # return 1 if expit(self.dot_product(x)) > predict_threshold else -1
 
     def loss(self, data):
         """ logistic loss for the given data
@@ -298,10 +313,11 @@ class LogisticRegression_expert(Model):
         :return: float
             logistic loss
         """
-
-        if len(data) == 0:
-            return 0
-        return sum(numpy.log(1 + numpy.exp(-1 * y * self.dot_product(x))) for (i, x, y) in data) / len(data)
+        
+        return self.zero_one_loss(data)
+        # if len(data) == 0:
+            # return 0
+        # return sum(numpy.log(1 + numpy.exp(-1 * y * self.dot_product(x))) for (i, x, y) in data) / len(data)
 
     def reg_loss(self, data, mu):
         """ L2-regularized logistic loss for the given data
@@ -314,9 +330,11 @@ class LogisticRegression_expert(Model):
         :return: float
             returns L2-regularized logistic loss for the given data
         """
-        if len(data) == 0:
-            return 0
-        return self.loss(data) + 0.5 * mu * numpy.dot(self.param, self.param)
+        
+        return self.zero_one_loss(data)
+        # if len(data) == 0:
+            # return 0
+        # return self.loss(data) + 0.5 * mu * numpy.dot(self.param, self.param)
 
     def zero_one_loss(self, data, predict_threshold=0.5):
         """ misclassification loss for the given data
@@ -332,7 +350,9 @@ class LogisticRegression_expert(Model):
 
         if len(data) == 0:
             return 0
-        return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+            
+        return sum(self.predict(x) != y[0] for (i, x, y) in data) * 1.0 / len(data)
+        # return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
 
     def update_effective_set(self, new_buffer_pointer):
         """ updates the effective sample set
@@ -610,22 +630,27 @@ class LogisticRegression_AUE:
             else:
                 wn += weight
 
-        return 1 if wp > wn else -1
+        return 1 if wp > wn else 0
+        #return 1 if wp > wn else -1
 
     def zero_one_loss(self, data, predict_threshold=0.5):
         if len(data) == 0:
             return 0
-        return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+        return sum(self.predict(x, predict_threshold) != y[0] for (i, x, y) in data) * 1.0 / len(data)
+        # return sum(self.predict(x, predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
         
     def update_weights(self, test_set):
-        p = ( sum(y for (i, x, y) in test_set) + len(test_set) )/( 2*len(test_set) )
+        p = sum(y[0] for (i, x, y) in test_set)/len(test_set)
+        #p = ( sum(y for (i, x, y) in test_set) + len(test_set) )/( 2*len(test_set) )
         mser = p*(1-p)
         
         for index, expert in self.experts.items():
             mse = 0
             for (i, x, y) in test_set:
-                pr = expit(expert.dot_product(x))
-                if y == 1:
+                pr = expert.clf.predict_proba(x)[0][1]
+                #pr = expit(expert.dot_product(x))
+                if y[0] == 1:
+                #if y == 1:
                     mse += (1-pr)**2
                 else:
                     mse += pr**2
@@ -677,7 +702,8 @@ class LogisticRegression_Candor:
             e.update_weight(e.get_weight() * numpy.exp(-1 * e.loss([(0, x, y)]) * LogisticRegression_Candor.ETA))
             self.normalize_weights()
 
-        return 1 if wp > wn else -1
+        return 1 if wp > wn else 0
+        #return 1 if wp > wn else -1
 
     def update_weights(self, training_point):
         (i, x, y) = training_point
@@ -688,7 +714,8 @@ class LogisticRegression_Candor:
     def zero_one_loss(self, data, predict_threshold=0.5):
         if len(data) == 0:
             return 0
-        return sum(self.predict((i,x,y), predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
+        return sum(self.predict((i,x,y), predict_threshold) != y[0] for (i, x, y) in data) * 1.0 / len(data)
+        #return sum(self.predict((i,x,y), predict_threshold) != y for (i, x, y) in data) * 1.0 / len(data)
 
     def get_weighted_combination(self):
         self.normalize_weights()
@@ -705,3 +732,21 @@ class LogisticRegression_Candor:
     def reset_weights(self):
         for (e, wp_e) in self.experts:
             e.update_weight(1. / len(self.experts))
+            
+class HoeffdingAdaptiveTree:
+      
+    def __init__(self):
+        self.clf = HoeffdingAdaptiveTreeClassifier()
+        
+    def update_model(self, training_point):
+        (i, x, y) = training_point
+        self.clf.partial_fit(x, y)
+
+    def predict(self, x, predict_threshold=0.5):
+        return self.clf.predict(x)[0]
+
+    def zero_one_loss(self, data, predict_threshold=0.5):
+        if len(data) == 0:
+            return 0         
+        return sum(self.predict(x) != y[0] for (i, x, y) in data) * 1.0 / len(data)
+        
