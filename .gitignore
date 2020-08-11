@@ -1,5 +1,6 @@
 output/
 # data/
+.pyc
 
 ## Defaults
 # Byte-compiled / optimized / DLL files

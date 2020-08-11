@@ -19,7 +19,8 @@ if __name__ == "__main__":
 
     results = results.Results(dataset_name)
 
-    expt = training.Training(dataset=dataset_name, computation=computation, rate=rate, base_learner=opt, algo_names=['Aware', 'MDDM', 'AUE', 'DriftSurf', 'HAT', 'OBL'])
+    expt = training.Training(dataset=dataset_name, computation=computation, rate=rate, base_learner=opt, algo_names=['Aware', 'MDDM', 'AUE', 'DriftSurf'])
+    # HAT, OBL
     #algo_names=['Aware', 'MDDM', 'AUE', 'Candor', 'DriftSurf']
 
     N = 1

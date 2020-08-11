@@ -155,7 +155,7 @@ class Results:
         return outputs
 
     @staticmethod
-    def plot_training(output:dict, dataset_name, b_in, path, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf', 'HAT', 'OBL']):
+    def plot_training(output:dict, dataset_name, b_in, path, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf']):
         # algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf']
 
         mpl.rcParams['lines.linewidth'] = 1.0

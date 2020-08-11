@@ -4,6 +4,7 @@ import logging
 import collections
 from skmultiflow.trees import HoeffdingTreeClassifier
 from skmultiflow.trees import HoeffdingAdaptiveTreeClassifier
+from skmultiflow.bayes import NaiveBayes
 
 
 class Opt:
@@ -174,7 +175,8 @@ class LogisticRegression_expert(Model):
         self.perf = (None, None, None) # current, previous, best observed
         
         
-        self.clf = HoeffdingTreeClassifier()
+        # self.clf = HoeffdingTreeClassifier()
+        self.clf = NaiveBayes()
 
     # def dot_product(self, x):
         # """ computes the dot product of input x's features and the model parameter
