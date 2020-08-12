@@ -306,17 +306,42 @@ class read_dataset:
 
         X = []
         Y = []
-        with open('data/real-world/airline.data') as file:
+        # with open('data/real-world/airline.data') as file:
+            # i = 0
+            # for line in file:
+                # if  num1 <= i < num2:
+                    # fields = line.strip().split(',')
+                    # label = int(fields[len(fields)-1])
+
+                    # features = {0:1}
+                    # for j in range(len(fields)-1):
+                        # (index, val) = fields[j].split(':')
+                        # features[int(index)] = float(val)
+                    # X.append(features)
+                    # Y.append(label)
+                # i += 1
+        # assert len(X) == n
+        
+        d = 12
+        with open('data/real-world/airline2.data') as file:
             i = 0
             for line in file:
-                if  num1 <= i < num2:
+                if  num1 + 1 <= i < num2 + 1:
                     fields = line.strip().split(',')
-                    label = int(fields[len(fields)-1])
-
-                    features = {0:1}
-                    for j in range(len(fields)-1):
-                        (index, val) = fields[j].split(':')
-                        features[int(index)] = float(val)
+                    label = 1 if int(fields[14]) > 0 else 0
+                    features = {0: int(fields[0]), 
+                                1: int(fields[1]), 
+                                2: int(fields[2]), 
+                                3: int(fields[3]), 
+                                4: int(fields[5]), 
+                                5: int(fields[7]), 
+                                6: fields[8], 
+                                7: int(fields[11]), 
+                                8: fields[16], 
+                                9: fields[17], 
+                                10: int(fields[18]), 
+                                11: int(fields[24])
+                                }
                     X.append(features)
                     Y.append(label)
                 i += 1
