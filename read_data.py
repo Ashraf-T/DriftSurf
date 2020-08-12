@@ -1,5 +1,6 @@
 import csv
 import math
+from sklearn import preprocessing 
 
 class read_dataset:
 
@@ -328,25 +329,30 @@ class read_dataset:
             for line in file:
                 if  num1 + 1 <= i < num2 + 1:
                     fields = line.strip().split(',')
+                    fields = [ f if f != 'NA' else '0'for f in fields ]
                     label = 1 if int(fields[14]) > 0 else 0
-                    features = {0: int(fields[0]), 
-                                1: int(fields[1]), 
-                                2: int(fields[2]), 
-                                3: int(fields[3]), 
-                                4: int(fields[5]), 
-                                5: int(fields[7]), 
-                                6: fields[8], 
-                                7: int(fields[11]), 
-                                8: fields[16], 
-                                9: fields[17], 
-                                10: int(fields[18]), 
-                                11: int(fields[24])
-                                }
+                    features = [ int(fields[0]), 
+                                 int(fields[1]), 
+                                 int(fields[2]), 
+                                 int(fields[3]), 
+                                 int(fields[5]), 
+                                 int(fields[7]), 
+                                 fields[8], 
+                                 int(fields[11]), 
+                                 fields[16], 
+                                 fields[17], 
+                                 int(fields[18]), 
+                                 int(fields[23])
+                                ]
                     X.append(features)
                     Y.append(label)
                 i += 1
         assert len(X) == n
-
+        
+        enc = preprocessing.OrdinalEncoder()
+        enc.fit(X)
+        X = enc.transform(X)
+        
         return X, Y, n, d, drift_times
 
     # semi-synthetic datasets :

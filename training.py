@@ -52,8 +52,12 @@ class Training:
         X0 = []
         for xx in self.X:
             xx0 = numpy.zeros((1, self.d))
-            for (k, v) in xx.items():
-                xx0[0][k] = v
+            if self.dataset_name != 'airline':
+                for (k, v) in xx.items():
+                    xx0[0][k] = v
+            else:
+                for k in range(self.d):
+                    xx0[0][k] = xx[k]
             X0.append(xx0)
         self.X = X0
         
