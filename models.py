@@ -326,15 +326,15 @@ class LogisticRegression_expert(Model):
             logistic loss
         """
         
-        if len(data) == 0:
-            return 0
-        y_true = [y[0] for (i,x,y) in data]
-        y_pred = [self.clf.predict_proba(x)[0] for (i,x,y) in data]
-        y_pred = [[1., 0.] if yy[0] == 1 else yy for yy in y_pred]
-        return log_loss(y_true, y_pred)
+        # if len(data) == 0:
+            # return 0
+        # y_true = [y[0] for (i,x,y) in data]
+        # y_pred = [self.clf.predict_proba(x)[0] for (i,x,y) in data]
+        # y_pred = [[1., 0.] if yy[0] == 1 else yy for yy in y_pred]
+        # y_pred = [[0., 1.] if yy[0] == 0 else yy for yy in y_pred]
+        # return log_loss(y_true, y_pred)
         
-        
-        # return self.zero_one_loss(data)
+        return self.zero_one_loss(data)
         
         # if len(data) == 0:
             # return 0
@@ -352,7 +352,7 @@ class LogisticRegression_expert(Model):
             returns L2-regularized logistic loss for the given data
         """
         
-        return self.loss(data) # return self.zero_one_loss(data)
+        return self.zero_one_loss(data)
         # if len(data) == 0:
             # return 0
         # return self.loss(data) + 0.5 * mu * numpy.dot(self.param, self.param)
