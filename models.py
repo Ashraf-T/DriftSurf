@@ -6,6 +6,7 @@ from skmultiflow.trees import HoeffdingTreeClassifier
 from skmultiflow.trees import HoeffdingAdaptiveTreeClassifier
 from skmultiflow.bayes import NaiveBayes
 import hyperparameters
+from sklearn.metrics import log_loss
 
 
 class DatasetName:
@@ -325,7 +326,12 @@ class LogisticRegression_expert(Model):
             logistic loss
         """
         
-        return self.zero_one_loss(data)
+        if len(data) == 0:
+            return 0
+        return sum( log_loss( y_true=y[0], y_pred=(1 - self.clf.predict_proba(x)[0][0]) ) for (i, x, y) in data) / len(data)
+        
+        # return self.zero_one_loss(data)
+        
         # if len(data) == 0:
             # return 0
         # return sum(numpy.log(1 + numpy.exp(-1 * y * self.dot_product(x))) for (i, x, y) in data) / len(data)
@@ -342,7 +348,7 @@ class LogisticRegression_expert(Model):
             returns L2-regularized logistic loss for the given data
         """
         
-        return self.zero_one_loss(data)
+        return self.loss(data) # return self.zero_one_loss(data)
         # if len(data) == 0:
             # return 0
         # return self.loss(data) + 0.5 * mu * numpy.dot(self.param, self.param)

@@ -155,9 +155,7 @@ class Results:
         return outputs
 
     @staticmethod
-    def plot_training(output:dict, dataset_name, b_in, path, computation, algorithms=['AUE']):
-        # algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf']
-
+    def plot_training(output:dict, dataset_name, b_in, path, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf', 'HAT']):
         mpl.rcParams['lines.linewidth'] = 1.0
         mpl.rcParams['lines.markersize'] = 4
 
@@ -179,12 +177,13 @@ class Results:
             markers = ['^', 's', 'o', 'x', '.', '+']
             k = 0
             for key in algorithms:
-                linestyle = '-' if key == 'Aware' else '--'
-                label = 'DriftSurf' if key == 'DSURF' else key
-                label = '1PASS-SGD' if key == 'SGD' else label
-                plt.plot(xx, output[key][first:last], colors[k], label=label, marker=markers[k], linestyle=linestyle,
-                     markevery=10)
-                k += 1
+                if key in output:
+                    linestyle = '-' if key == 'Aware' else '--'
+                    label = 'DriftSurf' if key == 'DSURF' else key
+                    label = '1PASS-SGD' if key == 'SGD' else label
+                    plt.plot(xx, output[key][first:last], colors[k], label=label, marker=markers[k], linestyle=linestyle,
+                         markevery=10)
+                    k += 1
             plt.xlabel('Time')
             plt.ylabel('Misclassification rate')
             plt.legend()
