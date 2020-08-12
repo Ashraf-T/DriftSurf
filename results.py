@@ -22,7 +22,8 @@ class Results:
     def gather_training_results(self, output_list, computation):
 
         self.store_results(output_list, self.path)
-
+    
+        print(self.dataset_name)
         ave_over_time = self.average_over_time(output_list)
         output, b = self.median_outputs(output_list)
         self.store_results(ave_over_time, self.path, 'ave_over_time')
@@ -227,9 +228,9 @@ class Results:
 
                 ave_over_time[key] = numpy.mean(output[key])
                 # var_over_time[key] = numpy.var(output[key])
-                print('average over time {0} : {1}'.format(key, ave_over_time[key]))
+                print('average over time {0} : {1.3f}'.format(key, ave_over_time[key]))
                 # print('variance over time {0} : {1}'.format(key, var_over_time[key]))
-                logging.info('average over time {0} : {1}'.format(key, ave_over_time[key]))
+                logging.info('average over time {0} : {1.3f}'.format(key, ave_over_time[key]))
                 # logging.info('variance over time {0} : {1}'.format(key, var_over_time[key]))
         return ave_over_time
 
