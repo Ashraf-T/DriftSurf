@@ -228,9 +228,9 @@ class Results:
 
                 ave_over_time[key] = numpy.mean(output[key])
                 # var_over_time[key] = numpy.var(output[key])
-                print('average over time {0} : {1.3f}'.format(key, ave_over_time[key]))
+                print('average over time {0} : {1:3f}'.format(key, ave_over_time[key]))
                 # print('variance over time {0} : {1}'.format(key, var_over_time[key]))
-                logging.info('average over time {0} : {1.3f}'.format(key, ave_over_time[key]))
+                logging.info('average over time {0} : {1:3f}'.format(key, ave_over_time[key]))
                 # logging.info('variance over time {0} : {1}'.format(key, var_over_time[key]))
         return ave_over_time
 
