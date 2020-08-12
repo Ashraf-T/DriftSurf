@@ -184,8 +184,8 @@ class LogisticRegression_expert(Model):
             nominal_attributes = hyperparameters.NOMINAL[DatasetName.name]
         else:
             nominal_attributes = []
-        # self.clf = HoeffdingTreeClassifier(nominal_attributes=nominal_attributes)
-        self.clf = NaiveBayes(nominal_attributes=nominal_attributes)
+        self.clf = HoeffdingTreeClassifier(nominal_attributes=nominal_attributes)
+        # self.clf = NaiveBayes(nominal_attributes=nominal_attributes)
         
 
     # def dot_product(self, x):
@@ -330,6 +330,7 @@ class LogisticRegression_expert(Model):
             return 0
         y_true = [y[0] for (i,x,y) in data]
         y_pred = [self.clf.predict_proba(x)[0] for (i,x,y) in data]
+        y_pred = [[1., 0.] if yy[0] == 1 else yy for yy in y_pred]
         return log_loss(y_true, y_pred)
         
         
