@@ -328,7 +328,10 @@ class LogisticRegression_expert(Model):
         
         if len(data) == 0:
             return 0
-        return sum( log_loss( y_true=y[0], y_pred=(1 - self.clf.predict_proba(x)[0][0]) ) for (i, x, y) in data) / len(data)
+        y_true = [y[0] for (i,x,y) in data]
+        y_pred = [self.clf.predict_proba(x)[0] for (i,x,y) in data]
+        return log_loss(y_true, y_pred)
+        
         
         # return self.zero_one_loss(data)
         
