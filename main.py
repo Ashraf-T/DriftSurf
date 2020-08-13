@@ -15,8 +15,8 @@ if __name__ == "__main__":
     dataset_name = sys.argv[1]
     computation = sys.argv[2]
     rate = int(sys.argv[3])
-    #opt = models.Opt.SGD.upper()
-    opt = models.Opt.STRSAGA.upper() #sys.argv[4].upper()
+    opt = models.Opt.SGD.upper()
+    # opt = models.Opt.STRSAGA.upper() #sys.argv[4].upper()
 
     results = results.Results(dataset_name)
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     for i in range(N):
         print({'Trial {0}'.format(i)})
         logging.info('Trial {0}'.format(i))
-        output = expt.process(delta=0.1, loss_fn='reg')
+        output = expt.process(delta=0.05, loss_fn='reg')
         outputs.append(output)
 
     results.gather_training_results(outputs,computation)

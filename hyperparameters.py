@@ -7,7 +7,7 @@ STEP_SIZE = {
         'circles':0.1, 'rcv': 5e-1, 'covtype': 5e-3, 'airline': 2e-2, 'elec': 1e-1,    'powersupply': 2e-2
     }
 b = {'default': 100, 'elec': 34}
-r = {'default': 8}
+r = {'default': 10}
 
 NOMINAL = {
         'mixed': [0, 1],
