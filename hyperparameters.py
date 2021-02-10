@@ -13,5 +13,6 @@ r = {'default': 4, 'others': 10}
 NOMINAL = {
         'mixed': [0, 1],
         'elec': [1, 2, 3, 4, 5, 6, 7],
-        'airline': [0, 1, 2, 3, 6, 8, 9, 11]
+        'airline': [0, 1, 2, 3, 6, 8, 9, 11],
+        'covtype': list(range(11, 55))
     }

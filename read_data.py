@@ -427,7 +427,10 @@ class read_dataset:
                 features = {0: 1}
                 for j in range(1, len(fields)):
                     (index, val) = fields[j].split(':')
-                    features[int(index)] = float(val)
+                    if int(index) < 11:
+                        features[int(index)] = float(val)
+                    else:
+                        features[int(index)] = 1
                 X.append(features)
                 Y.append(label)
                 i += 1
