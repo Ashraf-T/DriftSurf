@@ -19,7 +19,7 @@ class Results:
         self.path = self.create_folder()
         logging.basicConfig(filename=os.path.join(self.path, '{0}.log'.format(dataset_name)), filemode='w', level=logging.INFO)
 
-    def gather_training_results(self, output_list, computation):
+    def gather_training_results(self, output_list, computation, algorithms=['Aware', 'MDDM', 'AUE', 'DriftSurf']):
 
         self.store_results(output_list, self.path)
     
@@ -27,7 +27,7 @@ class Results:
         ave_over_time = self.average_over_time(output_list)
         output, b = self.median_outputs(output_list)
         self.store_results(ave_over_time, self.path, 'ave_over_time')
-        self.plot_training(output, self.dataset_name, b, self.path, computation)
+        self.plot_training(output, self.dataset_name, b, self.path, computation, algorithms)
         logging.shutdown()
 
     @staticmethod
@@ -179,7 +179,8 @@ class Results:
             k = 0
             for key in algorithms:
                 if key in output:
-                    linestyle = '-' if key == 'Aware' else '--'
+                    # linestyle = '-' if key == 'Aware' else '--'
+                    linestyle = '-' if key.startswith('DriftSurf') else '--'
                     label = 'DriftSurf' if key == 'DSURF' else key
                     label = '1PASS-SGD' if key == 'SGD' else label
                     plt.plot(xx, output[key][first:last], colors[k], label=label, marker=markers[k], linestyle=linestyle,

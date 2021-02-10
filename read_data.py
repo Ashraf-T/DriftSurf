@@ -307,21 +307,38 @@ class read_dataset:
 
         X = []
         Y = []
-        # with open('data/real-world/airline.data') as file:
-            # i = 0
-            # for line in file:
-                # if  num1 <= i < num2:
-                    # fields = line.strip().split(',')
-                    # label = int(fields[len(fields)-1])
+        with open('data/real-world/airline.data') as file:
+            i = 0
+            for line in file:
+                if  num1 <= i < num2:
+                    fields = line.strip().split(',')
+                    label = int(fields[len(fields)-1])
 
-                    # features = {0:1}
-                    # for j in range(len(fields)-1):
-                        # (index, val) = fields[j].split(':')
-                        # features[int(index)] = float(val)
-                    # X.append(features)
-                    # Y.append(label)
-                # i += 1
-        # assert len(X) == n
+                    features = {0:1}
+                    for j in range(len(fields)-1):
+                        (index, val) = fields[j].split(':')
+                        features[int(index)] = float(val)
+                    X.append(features)
+                    Y.append(label)
+                i += 1
+        assert len(X) == n
+
+        return X, Y, n, d, drift_times
+
+    def airline_unprocessed(self, num2=58100, num1=0):
+        """ read real-world dataset airline
+        'Ikonomovska, E. Airline dataset.http://kt.ijs.si/elena_ikonomovska/data.html.  (Accessed on02/06/2020).'
+
+        :param num2:
+        :param num1:
+        :return:
+                features, labels, #records, #features, times that drift happen
+        """
+        n = num2 - num1 # read a partial of this dataset
+        drift_times = [31, 67]
+
+        X = []
+        Y = []
         
         d = 12
         with open('data/real-world/airline2.data') as file:
