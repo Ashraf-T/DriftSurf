@@ -83,9 +83,9 @@ class Results:
         plt.clf()
         markers = ['o', 'x']
         k = 0
-        for method in [models.LogisticRegression_DriftSurf.GREEDY, 'no-Greedy']:
-            linestyle = '-' if method == models.LogisticRegression_DriftSurf.GREEDY else '--'
-            label = 'DriftSurf' if method == models.LogisticRegression_DriftSurf.GREEDY else 'DriftSurf(no-greedy)'
+        for method in [models.DriftSurf_v2.GREEDY, 'no-Greedy']:
+            linestyle = '-' if method == models.DriftSurf_v2.GREEDY else '--'
+            label = 'DriftSurf' if method == models.DriftSurf_v2.GREEDY else 'DriftSurf(no-greedy)'
             plt.plot(xx, output[method][1:b], 'k', label=label, marker=markers[k],
                      linestyle=linestyle, markevery=10)
             k += 1

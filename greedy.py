@@ -18,10 +18,10 @@ class greedy:
 
     def process(self, delta=0.1, loss_fn='reg'):
 
-        train = training.Training(self.dataset_name, algo_names=['DriftSurf'])
+        train = training.Training(self.dataset_name, algo_names=['DriftSurf_v2'])
         outputs = {}
-        for method in [models.LogisticRegression_DriftSurf.GREEDY, 'no-Greedy']:
-            outputs[method] = train.process(delta, loss_fn, reactive_method=method)[0]['DriftSurf']
+        for method in [models.DriftSurf_v2.GREEDY, 'no-Greedy']:
+            outputs[method] = train.process(delta, loss_fn, reactive_method=method)[0]['DriftSurf_v2']
         return outputs
 
 if __name__ == "__main__":

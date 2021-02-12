@@ -24,9 +24,9 @@ class Sensitivity_noise:
             dataset_name = 'sea{0}'.format(noise)
             print('Processing {0}'.format(dataset_name))
             train = training.Training(dataset_name, algo_names=self.algo_names)
-            output, _, _ = [train.process(delta,loss_fn,drift_detector)]
+            output, _, _ = train.process(delta,loss_fn,drift_detector)
 
-            ave = results.average_over_time(output)
+            ave = results.average_over_time([output])
             for algo in ave.keys():
                 self.ave_over_time[algo].append(ave[algo])
 
