@@ -133,6 +133,8 @@ class Results:
         markers = ['s', 'o', 'x']
         k = 0
         for key in output.keys():
+            label = 'DriftSurf' if key.startswith('DriftSurf') else key
+            label = 'Standard_DD' if label.startswith('Standard') else label
             plt.plot(xx, output[key], colors[k], label=key, marker=markers[k])
             k += 1
         plt.xlabel('noise_level')
@@ -181,7 +183,8 @@ class Results:
                 if key in output:
                     # linestyle = '-' if key == 'Aware' else '--'
                     linestyle = '-' if key.startswith('DriftSurf') else '--'
-                    label = 'DriftSurf' if key == 'DSURF' else key
+                    label = 'DriftSurf' if key == 'DriftSurf_v2' else key
+                    label = 'StandardDD' if key == 'Standard' else label
                     label = '1PASS-SGD' if key == 'SGD' else label
                     plt.plot(xx, output[key][first:last], colors[k], label=label, marker=markers[k], linestyle=linestyle,
                          markevery=10)

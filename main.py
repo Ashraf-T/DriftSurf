@@ -24,7 +24,7 @@ if __name__ == "__main__":
     algos = ['MDDM', 'AUE', 'Standard', 'DriftSurf_v2']
     expt = training.Training(dataset=dataset_name, computation=computation, rate=rate, opt=opt, algo_names=algos, drift=True, base_learner='LR')
 
-    N = 5
+    N = 1
     outputs = []
     FPRs = []
     RTs = []
