@@ -8,6 +8,7 @@ from skmultiflow.bayes import NaiveBayes
 import hyperparameters
 from sklearn.metrics import log_loss
 
+numpy.random.seed(0)
 
 class DatasetName:
     name = "_"
@@ -771,7 +772,7 @@ class DriftSurf_v2:
 
         ## Update frozen_model
         if self.stable and (self.predictive_best_observed_perf is None or current_perf < self.predictive_best_observed_perf):
-            logging.info('DriftSurf_New: update R_b')
+            logging.info('update R_b')
             self.predictive_frozen.__dict__ = self.expert_predictive.__dict__.copy()
             self.predictive_best_observed_perf = current_perf
 
@@ -791,9 +792,11 @@ class DriftSurf_v2:
             # logging.info('reactive: {0}, predictive: {1}'.format(self.expert_reactive.get_current_perf(), self.expert_predictive.get_current_perf()))
             if self.expert_reactive.get_current_perf() and self.expert_reactive.get_current_perf() < self.expert_predictive.get_current_perf():
                 self.predictor_in_reactive.append('r')
+                # logging.info('uses reactive model')
                 return self.expert_reactive
             else:
                 self.predictor_in_reactive.append('p')
+                # logging.info('uses predictive model')
                 return self.expert_predictive
         else:
             return self.expert_predictive
@@ -882,7 +885,7 @@ class DriftSurf_v2:
         perf_frozen_predictive = self.predictive_frozen.reg_loss(self.sample_reactive, mu) if (self.base_learner == self.LR and self.loss_fn == self.REG) else self.predictive_frozen.zero_one_loss(self.sample_reactive)
         perf_frozen_reactive = self.reactive_frozen.reg_loss(self.sample_reactive, mu) if (self.base_learner == self.LR and self.loss_fn == self.REG) else self.expert_reactive.zero_one_loss(self.sample_reactive)
 
-        logging.info(('DriftSurf_New: Performance of frozen model : {0}, frozen reactive : {1}').format(perf_frozen_predictive, perf_frozen_reactive))
+        # logging.info(('Performance of frozen model : {0}, frozen reactive : {1}').format(perf_frozen_predictive, perf_frozen_reactive))
 
         logging.info('switch at the end of reactive state: {}'.format((perf_frozen_predictive - self.delta/2 > perf_frozen_reactive)))
         return (perf_frozen_predictive - self.delta/2 > perf_frozen_reactive)
@@ -903,8 +906,8 @@ class DriftSurf_v2:
 
             self.expert_predictive.update_weight(1)
 
-            logging.info('DriftSurf_New exit reactive state with new')
-            logging.info('DriftSurf_New predictor during reactive state: {0}'.format(self.predictor_in_reactive))
+            logging.info('exit reactive state with new')
+            logging.info('predictor during reactive state: {0}'.format(self.predictor_in_reactive))
             num = 0
             while len(self.predictor_in_reactive) > 0 and self.predictor_in_reactive.pop() == 'r':
                 num -= 1
@@ -912,8 +915,8 @@ class DriftSurf_v2:
             self.predictor_in_reactive = []
             return True, num
         else:
-            logging.info('DriftSurf New exit reactive state with old')
-            logging.info('DrfitSurf New predictor during reactive state: {0}'.format(self.predictor_in_reactive))
+            logging.info('exit reactive state with old')
+            logging.info('predictor during reactive state: {0}'.format(self.predictor_in_reactive))
             self.predictor_in_reactive = []
             return False, 0
 
@@ -1046,7 +1049,7 @@ class Standard:
 
         condition1 = self.predictive_frozen.get_current_perf() > self.predictive_best_observed_perf + self.delta
         if condition1:
-            logging.info('DriftSurf_Standard detects a drift')
+            logging.info('Standard detects a drift')
 
         return condition1
 

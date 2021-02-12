@@ -6,7 +6,7 @@ import read_data as data
 import sys
 import models
 import numpy
-
+import os
 if __name__ == "__main__":
 
     if len(sys.argv) < 4:
@@ -21,10 +21,7 @@ if __name__ == "__main__":
 
     results = results.Results(dataset_name)
 
-    # ['Aware', 'MDDM', 'AUE', 'DriftSurf', 'HAT']
-    # HAT, OBL
-    #algo_names=['Aware', 'MDDM', 'AUE', 'Candor', 'DriftSurf']
-    algos = ['Standard']
+    algos = ['MDDM', 'AUE', 'Standard', 'DriftSurf_v2']
     expt = training.Training(dataset=dataset_name, computation=computation, rate=rate, opt=opt, algo_names=algos, drift=True, base_learner='LR')
 
     N = 1

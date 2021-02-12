@@ -21,7 +21,7 @@ class greedy:
         train = training.Training(self.dataset_name, algo_names=['DriftSurf'])
         outputs = {}
         for method in [models.LogisticRegression_DriftSurf.GREEDY, 'no-Greedy']:
-            outputs[method] = train.process(delta, loss_fn, reactive_method=method)['DriftSurf']
+            outputs[method] = train.process(delta, loss_fn, reactive_method=method)[0]['DriftSurf']
         return outputs
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ class Sensitivity_noise:
 
         self.dataset_name = 'sea'
         self.noise_levels = [0, 10, 20, 30]
-        self.algo_names=['MDDM','AUE','DriftSurf']
+        self.algo_names=['MDDM','AUE', 'Standard', 'DriftSurf_v2']
         self.ave_over_time = {}
 
         for algo in self.algo_names:
@@ -24,7 +24,7 @@ class Sensitivity_noise:
             dataset_name = 'sea{0}'.format(noise)
             print('Processing {0}'.format(dataset_name))
             train = training.Training(dataset_name, algo_names=self.algo_names)
-            output = [train.process(delta,loss_fn,drift_detector)]
+            output, _, _ = [train.process(delta,loss_fn,drift_detector)]
 
             ave = results.average_over_time(output)
             for algo in ave.keys():

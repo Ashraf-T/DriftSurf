@@ -7,6 +7,8 @@ import random
 import numpy
 import logging
 
+numpy.random.seed(1)
+random.seed(1)
 
 class Training:
 
@@ -425,12 +427,13 @@ class Training:
         :param new_batch:
                 newly arrived batch of data points
         """
+        logging.info('DriftSurf_v1:')
         self.DriftSurf_v1.update_perf_all(new_batch, self.mu)
 
         if self.DriftSurf_v1.stable:
             if self.DriftSurf_v1.enter_reactive(self.S, new_batch, self.mu):
                 self.DriftSurf_v1_t = 0
-                logging.info('DriftSurf_v1 enters reactive state : {0}'.format(time))
+                logging.info('enters reactive state : {0}'.format(time))
 
             else:
                 # update models
@@ -454,7 +457,7 @@ class Training:
                 self.DriftSurf_v2.enter_reactive(self.S, new_batch, self.mu)
                 self.DriftSurf_v2_t = 0
                 self.DriftSurf_v2_reEnter = False
-                logging.info('DriftSurf_v2 enters reactive state again {}'.format(time))
+                logging.info('enters reactive state again {}'.format(time))
 
         else:
             self.DriftSurf_v2_reEnter = True
@@ -483,13 +486,14 @@ class Training:
         :param new_batch:
                 newly arrived batch of data points
         """
+        logging.info('DriftSurf_v2: ')
         self.DriftSurf_v2.update_perf_all(new_batch, self.mu)
 
         if self.DriftSurf_v2.stable:
             if self.DriftSurf_v2.enter_reactive(self.S, new_batch, self.mu):
                 self.DriftSurf_v2_t = 0
                 self.DriftSurf_v2_reEnter = False
-                logging.info('DriftSurf_v2 enters reactive state : {0}'.format(time))
+                logging.info('enters reactive state : {0}'.format(time))
 
             else:
                 # update models
@@ -503,7 +507,7 @@ class Training:
 
         if not self.DriftSurf_v3.enter_reactive_condition():
             self.DriftSurf_v3.stable = True
-            logging.info('DriftSurf_v3 exists reactive state early at time {}'.format(time))
+            logging.info('exists reactive state early at time {}'.format(time))
             self.process_DriftSurf_v3_stable(time, new_batch)
         else:
             self.DriftSurf_v3_t += 1
@@ -527,7 +531,7 @@ class Training:
         if self.DriftSurf_v3.stable:
             if self.DriftSurf_v3.enter_reactive(self.S, new_batch, self.mu):
                 self.DriftSurf_v3_t = 0
-                logging.info('DriftSurf_v3 enters reactive state : {0}'.format(time))
+                logging.info('enters reactive state : {0}'.format(time))
 
             else:
                 # update models
@@ -541,6 +545,7 @@ class Training:
         :param new_batch:
                 newly arrived batch of data points
         """
+        logging.info("DriftSurf_v3: ")
         self.DriftSurf_v3.update_perf_all(new_batch, self.mu)
 
         if self.DriftSurf_v3.stable:
