@@ -343,7 +343,7 @@ class Training:
                 for s in range(int(self.rho * weight)):
                     j = random.randrange(lst[0], lst[1] + self.lam)
                     point = (j, self.X[j], self.Y[j])
-                    model.step_step_biased(point, self.step_size, models.LogisticRegression_Candor.MU, wp)
+                    model.step_step_biased(point, self.step_size, models.Candor.MU, wp)
                 model.update_effective_set(lst[1] + self.lam)
 
     # single-pass SGD
